@@ -1,10 +1,10 @@
 # Overview
 
-Vuegraf is a simple Python-based program that will fetch metrics provided by your home's electrical panel usage, via the [Emporia Vue](https://emporiaenergy.com "Emporia's Homepage") system, and store the metrics into your own InfluxDB. When paired with Grafana, and the included Grafana dashboard, you'll be able to:
-* view your energy usage across all circuits on a single graph
-* create alerts to notify when certain energy usage thresholds are exceeded
+Vuegraf is a simple Python-based program that will fetch metrics provided by your home's electrical panel usage, via the [Emporia Vue](https://emporiaenergy.com "Emporia's Homepage") system, and store the metrics into your own InfluxDB. When paired with Grafana you'll be able to:
+* View your energy usage across all circuits on a single graph
+* Create alerts to notify when certain energy usage thresholds are exceeded
 
-This project is not affiliated with emporia energy company.
+This project is not affiliated with _emporia energy_ company.
 
 # Dependencies
 
@@ -27,14 +27,6 @@ A sample Grafana dashboard is shown below:
 A single graph showing multiple overlayed circuits is shown below:
 
 ![Graph Example Screenshot](screenshots/graph.png?raw=true "Graph Example")
-
-A graph query is shown below, showing a simple filter to pull data for a specific circuit.
-
-![Query Example Screenshot](screenshots/alert.png?raw=true "Query Example")
-
-Grafana also supports alerts, with a number of alert channels, such as Email or Slack.
-
-![Alert Example Screenshot](screenshots/alert.png?raw=true "Alert Example")
 
 # Configuration
 The configuration allows for the definition of multiple Emporia Vue accounts. This will only be useful to users that need to pull metrics from multiple accounts. This is not needed if you have multiple Vue devices in a single account. Vuegraf will find multiple devices on its own within each account.
@@ -129,9 +121,17 @@ docker run --name vuegraf -d -v /home/myusername/vuegraf.conf:/opt/vuegraf/conf/
 
 Use [Grafana](https://grafana.com "Grafana") to visualize the data collected by Vuegraf. A sample [dashboard.json](dashboard.json) file is provided with this project, to get started. If you only have one Vue device you should remove the Left/Right panel references.
 
-Refer to the screenshot below for examples on how to define the InfluxDB data source.
+Refer to the screenshots below for examples on how to define the InfluxDB data source, graphs, and alerts.
 
 ![Grafana Data Source Screenshot](screenshots/datasource.png?raw=true "Data Source Example")
+
+A graph query is shown below, showing a simple filter to pull data for a specific circuit.
+
+![Query Example Screenshot](screenshots/alert.png?raw=true "Query Example")
+
+Grafana also supports alerts, with a number of alert channels, such as Email or Slack.
+
+![Alert Example Screenshot](screenshots/alert.png?raw=true "Alert Example")
 
 # License
 
