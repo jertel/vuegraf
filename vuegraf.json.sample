@@ -1,0 +1,45 @@
+{
+    "influxDb": {
+        "host": "my.influxdb.hostname",
+        "port": 8086,
+        "user": "root",
+        "pass": "root",
+        "database": "vue",
+        "reset": "false"
+    },
+    "accounts": [
+        {
+            "name": "Primary Residence",
+            "email": "my@email.address",
+            "password": "my-emporia-password",
+            "devices": [
+                {
+                    "name": "Right Panel",
+                    "channels": [
+                        "Air Conditioner",
+                        "Furnace",
+                        "Coffee Maker",
+                        "Oven",
+                        "Pool Vacuum",
+                        "Pool Filter",
+                        "Refrigerator",
+                        "Office"
+                    ]
+                },
+                {
+                    "name": "Left Panel",
+                    "channels": [
+                        "Dryer",
+                        "Washer",
+                        "Dishwasher",
+                        "Water Heater",
+                        "Landscape Features",
+                        "Septic Pump",
+                        "Deep Freeze",
+                        "Sprinkler Pump"        
+                    ]
+                }
+            ]
+        }
+    ]
+}
