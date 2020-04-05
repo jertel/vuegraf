@@ -22,19 +22,19 @@ The following screenshots are provided to illustrate the possibilities available
 
 A sample Grafana dashboard is shown below:
 
-![Dashboard Example Screenshot](../blob/master/screenshots/dashboard.png "Dashboard Example")
+![Dashboard Example Screenshot](screenshots/dashboard.png?raw=true "Dashboard Example")
 
 A single graph showing multiple overlayed circuits is shown below:
 
-![Graph Example Screenshot](../blob/master/screenshots/graph.png "Graph Example")
+![Graph Example Screenshot](screenshots/graph.png?raw=true "Graph Example")
 
 A graph query is shown below, showing a simple filter to pull data for a specific circuit.
 
-![Query Example Screenshot](../blob/master/screenshots/alert.png "Query Example")
+![Query Example Screenshot](screenshots/alert.png?raw=true "Query Example")
 
 Grafana also supports alerts, with a number of alert channels, such as Email or Slack.
 
-![Alert Example Screenshot](../blob/master/screenshots/alert.png "Alert Example")
+![Alert Example Screenshot](screenshots/alert.png?raw=true "Alert Example")
 
 # Configuration
 The configuration allows for the definition of multiple Emporia Vue accounts. This will only be useful to users that need to pull metrics from multiple accounts. This is not needed if you have multiple Vue devices in a single account. Vuegraf will find multiple devices on its own within each account.
@@ -43,7 +43,7 @@ The email address and password must match the credentials used when creating the
 
 Important: Ensure that sufficient protection is in place on this configuration file, since it contains the plain-text login credentials into the Emporia Vue account.
 
-A [sample configuration file](../blob/master/vuegraf.json.sample "Sample Vuegraf Configuration File") is provided in this repository, and details are described below.
+A [sample configuration file](vuegraf.json.sample "Sample Vuegraf Configuration File") is provided in this repository, and details are described below.
 
 ## Minimal Configuration
 The minimum configuration required to start Vuegraf is shown below:
@@ -127,14 +127,14 @@ docker run --name vuegraf -d -v /home/myusername/vuegraf.conf:/opt/vuegraf/conf/
 
 # Grafana
 
-Use [Grafana](https://grafana.com "Grafana") to visualize the data collected by Vuegraf. A sample [dashboard.json](../blob/master/dashboard.json) file is provided with this project, to get started. If you only have one Vue device you should remove the Left/Right panel references.
+Use [Grafana](https://grafana.com "Grafana") to visualize the data collected by Vuegraf. A sample [dashboard.json](dashboard.json) file is provided with this project, to get started. If you only have one Vue device you should remove the Left/Right panel references.
 
 Refer to the screenshot below for examples on how to define the InfluxDB data source.
 
-![Grafana Data Source Screenshot](../blob/master/screenshots/datasource.png "Data Source Example")
+![Grafana Data Source Screenshot](screenshots/datasource.png?raw=true "Data Source Example")
 
 # License
 
 Vuegraf is distributed under the MIT license.
 
-See [LICENSE](../blob/master/LICENSE) for more information.
+See [LICENSE](LICENSE) for more information.
