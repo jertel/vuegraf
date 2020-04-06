@@ -22,11 +22,11 @@ The following screenshots are provided to illustrate the possibilities available
 
 A sample Grafana dashboard is shown below:
 
-![Dashboard Example Screenshot](screenshots/dashboard.png?raw=true "Dashboard Example")
+![Dashboard Example Screenshot](https://github.com/jertel/vuegraf/blob/master/screenshots/dashboard.png?raw=true "Dashboard Example")
 
 A single graph showing multiple overlayed circuits is shown below:
 
-![Graph Example Screenshot](screenshots/graph.png?raw=true "Graph Example")
+![Graph Example Screenshot](https://github.com/jertel/vuegraf/blob/master/screenshots/graph.png?raw=true "Graph Example")
 
 # Configuration
 The configuration allows for the definition of multiple Emporia Vue accounts. This will only be useful to users that need to pull metrics from multiple accounts. This is not needed if you have multiple Vue devices in a single account. Vuegraf will find multiple devices on its own within each account.
@@ -35,7 +35,7 @@ The email address and password must match the credentials used when creating the
 
 Important: Ensure that sufficient protection is in place on this configuration file, since it contains the plain-text login credentials into the Emporia Vue account.
 
-A [sample configuration file](vuegraf.json.sample "Sample Vuegraf Configuration File") is provided in this repository, and details are described below.
+A [sample configuration file](https://github.com/jertel/vuegraf/blob/master/vuegraf.json.sample "Sample Vuegraf Configuration File") is provided in this repository, and details are described below.
 
 ## Minimal Configuration
 The minimum configuration required to start Vuegraf is shown below:
@@ -111,7 +111,7 @@ python vuegraf.py vuegraf.json
 
 ## Container
 
-A Docker container is provided at [hub.docker.com](https://hub.docker.com/r/jertel/vuegraf). Refer to the command below to understand how to launch Vuegraf as a container.
+A Docker container is provided at [hub.docker.com](https://hub.docker.com/r/jertel/vuegraf). Refer to the command below to launch Vuegraf as a container.
 
 ```sh
 docker run --name vuegraf -d -v /home/myusername/vuegraf.conf:/opt/vuegraf/conf/vuegraf.json jertel/vuegraf
@@ -119,22 +119,22 @@ docker run --name vuegraf -d -v /home/myusername/vuegraf.conf:/opt/vuegraf/conf/
 
 # Grafana
 
-Use [Grafana](https://grafana.com "Grafana") to visualize the data collected by Vuegraf. A sample [dashboard.json](dashboard.json) file is provided with this project, to get started. If you only have one Vue device you should remove the Left/Right panel references.
+Use [Grafana](https://grafana.com "Grafana") to visualize the data collected by Vuegraf. A sample [dashboard.json](https://github.com/jertel/vuegraf/blob/master/dashboard.json) file is provided with this project, to get started. If you only have one Vue device you should remove the Left/Right panel references.
 
 Refer to the screenshots below for examples on how to define the InfluxDB data source, graphs, and alerts.
 
-![Grafana Data Source Screenshot](screenshots/datasource.png?raw=true "Data Source Example")
+![Grafana Data Source Screenshot](https://github.com/jertel/vuegraf/blob/master/screenshots/datasource.png?raw=true "Data Source Example")
 
 A graph query is shown below, showing a simple filter to pull data for a specific circuit.
 
-![Query Example Screenshot](screenshots/alert.png?raw=true "Query Example")
+![Query Example Screenshot](https://github.com/jertel/vuegraf/blob/master/screenshots/query.png?raw=true "Query Example")
 
 Grafana also supports alerts, with a number of alert channels, such as Email or Slack.
 
-![Alert Example Screenshot](screenshots/alert.png?raw=true "Alert Example")
+![Alert Example Screenshot](https://github.com/jertel/vuegraf/blob/master/screenshots/alert.png?raw=true "Alert Example")
 
 # License
 
 Vuegraf is distributed under the MIT license.
 
-See [LICENSE](LICENSE) for more information.
+See [LICENSE](https://github.com/jertel/vuegraf/blob/master/LICENSE) for more information.
