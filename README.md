@@ -1,6 +1,8 @@
 # Overview
 
-Vuegraf is a simple Python-based program that will fetch metrics provided by your home's electrical panel usage, via the [Emporia Vue](https://emporiaenergy.com "Emporia's Homepage") system, and store the metrics into your own InfluxDB. When paired with Grafana you'll be able to:
+The [Emporia Vue](https://emporiaenergy.com "Emporia's Homepage") energy monitoring kit allows homeowners to monitor their electrical usage. It monitors the main feed consumption and up to 8 individual branch circuits, and feeds that data back to the Emporia API server.
+
+This project, Vuegraf, fetches those metrics from the Emporia Vue API host and stores the metrics into your own InfluxDB. When paired with Grafana you'll be able to:
 * View your energy usage across all circuits on a single graph
 * Create alerts to notify when certain energy usage thresholds are exceeded
 
