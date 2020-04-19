@@ -105,7 +105,7 @@ Ensure Python 3 and Pip are both installed. Install the required dependencies:
 pip install -r requirements.txt
 ```
 
-The run the program via Python, specifying the JSON configuration file path as the only argument:
+Then run the program via Python, specifying the JSON configuration file path as the only argument:
 
 ```sh
 python vuegraf.py vuegraf.json
