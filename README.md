@@ -50,6 +50,7 @@ The minimum configuration required to start Vuegraf is shown below:
         "user": "root",
         "pass": "root",
         "database": "vue",
+        "reset": false
     },
     "accounts": [
         {
