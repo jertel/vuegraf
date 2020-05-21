@@ -20,16 +20,68 @@ with open(configFilename) as configFile:
 influx = InfluxDBClient(config['influxDb']['host'], config['influxDb']['port'], config['influxDb']['user'], config['influxDb']['pass'], config['influxDb']['database'])
 influx.create_database(config['influxDb']['database'])
 if config['influxDb']['reset']:
-    print('Resetting database')
+    info('Resetting database')
     influx.delete_series(measurement='energy_usage')
 
 running = True
 
+def log(level, msg):
+    now = datetime.datetime.utcnow()
+    print('{} | {} | {}'.format(now, level.ljust(5), msg))
+
+def info(msg):
+    log("INFO", msg)
+
+def error(msg):
+    log("ERROR", msg)
+
 def handleExit(signum, frame):
     global running
-    print('Caught exit signal')
+    error('Caught exit signal')
     running = False
     pauseEvent.set()
+
+def populateDevices(account):
+    deviceIdMap = {}
+    account['deviceIdMap'] = deviceIdMap
+    channelIdMap = {}
+    account['channelIdMap'] = channelIdMap
+    devices = account['vue'].get_devices()
+    for device in devices:
+        device = account['vue'].populate_device_properties(device)
+        deviceIdMap[device.device_gid] = device
+        for chan in device.channels:
+            key = "{}-{}".format(device.device_gid, chan.channel_num)
+            if chan.name is None and chan.channel_num == '1,2,3':
+                chan.name = device.device_name
+            channelIdMap[key] = chan
+            info("Discovered new channel: {} ({})".format(chan.name, chan.channel_num))
+
+def lookupDeviceName(account, device_gid):
+    if device_gid not in account['deviceIdMap']:
+        populateDevices(account)
+
+    deviceName = "{}".format(device_gid)
+    if device_gid in account['deviceIdMap']:
+        deviceName = account['deviceIdMap'][device_gid].device_name
+    return deviceName
+
+def lookupChannelName(account, chan):
+    if chan.device_gid not in account['deviceIdMap']:
+        populateDevices(account)
+
+    deviceName = lookupDeviceName(account, chan.device_gid)
+    name = "{}-{}".format(deviceName, chan.channel_num)
+    if 'devices' in account:
+        for device in account['devices']:
+            if 'name' in device and device['name'] == deviceName:
+                try:
+                    num = int(chan.channel_num)
+                    if 'channels' in device and len(device['channels']) >= num:
+                        name = device['channels'][num - 1]
+                except:
+                    name = deviceName
+    return name
 
 signal.signal(signal.SIGINT, handleExit)
 signal.signal(signal.SIGHUP, handleExit)
@@ -45,7 +97,9 @@ while running:
         if 'vue' not in account:
             account['vue'] = PyEmVue()
             account['vue'].login(username=account['email'], password=account['password'])
-            print('Login completed')
+            info('Login completed')
+
+            populateDevices(account)
 
             account['end'] = tmpEndingTime
 
@@ -62,27 +116,10 @@ while running:
 
         try:
             channels = account['vue'].get_recent_usage(Scale.MINUTE.value)
-
             usageDataPoints = []
-            deviceIndex = 0
-            chanIndex = 0
             device = None
             for chan in channels:
-                chanName = '{}-{}'.format(chan.device_gid, chan.channel_num)
-
-                # Attempt to relabel this channel, if the config has user-friendly names defined
-                if 'devices' in account:
-                    if chan.channel_num == '1,2,3':
-                        if len(account['devices']) > deviceIndex:
-                            device = account['devices'][deviceIndex]
-                            if 'name' in device:
-                                chanName = device['name']
-                        deviceIndex = deviceIndex + 1
-                        chanIndex = 0
-                    elif device is not None:
-                        if len(device['channels']) > chanIndex:
-                            chanName = device['channels'][chanIndex]
-                            chanIndex = chanIndex + 1
+                chanName = lookupChannelName(account, chan)
 
                 usage = account['vue'].get_usage_over_time(chan, start, account['end'])
                 index = 0
@@ -101,11 +138,11 @@ while running:
                     index = index + 1
                     usageDataPoints.append(dataPoint)
 
-            print('Submitted datapoints to database; account="{}"; points={}'.format(account['name'], len(usageDataPoints)))
+            info('Submitted datapoints to database; account="{}"; points={}'.format(account['name'], len(usageDataPoints)))
             influx.write_points(usageDataPoints)
         except:
-            print('Failed to record new usage data', sys.exc_info()) 
+            error('Failed to record new usage data', sys.exc_info()) 
 
     pauseEvent.wait(INTERVAL_SECS)
 
-print('Finished')
+info('Finished')
