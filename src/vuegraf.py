@@ -124,24 +124,25 @@ while running:
                 usage = account['vue'].get_usage_over_time(chan, start, account['end'])
                 index = 0
                 for watts in usage:
-                    dataPoint = {
-                        "measurement": "energy_usage",
-                        "tags": {
-                            "account_name": account['name'],
-                            "device_name": chanName,
-                        },
-                        "fields": {
-                            "usage": watts,
-                        },
-                        "time": start + datetime.timedelta(seconds=index)
-                    }
-                    index = index + 1
-                    usageDataPoints.append(dataPoint)
+                    if watts is not None:
+                        dataPoint = {
+                            "measurement": "energy_usage",
+                            "tags": {
+                                "account_name": account['name'],
+                                "device_name": chanName,
+                            },
+                            "fields": {
+                                "usage": watts,
+                            },
+                            "time": start + datetime.timedelta(seconds=index)
+                        }
+                        index = index + 1
+                        usageDataPoints.append(dataPoint)
 
             info('Submitted datapoints to database; account="{}"; points={}'.format(account['name'], len(usageDataPoints)))
             influx.write_points(usageDataPoints)
         except:
-            error('Failed to record new usage data', sys.exc_info()) 
+            error('Failed to record new usage data: {}'.format(sys.exc_info())) 
 
     pauseEvent.wait(INTERVAL_SECS)
 
