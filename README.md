@@ -63,7 +63,7 @@ The minimum configuration required to start Vuegraf is shown below:
 ```
 
 ## Advanced Configuration
-To provide more user-friendly names of each Vue device and branch circuit, the following device configuration can be added to the configuration file, within the account block. List each device and circuit in the order that you added them to the Vue mobile app. The names do not need to match the names specified in the Vue mobile app.
+To provide more user-friendly names of each Vue device and branch circuit, the following device configuration can be added to the configuration file, within the account block. List each device and circuit in the order that you added them to the Vue mobile app. The channel names do not need to match the names specified in the Vue mobile app but the device names must match.
 
 ```json
             "devices": [
