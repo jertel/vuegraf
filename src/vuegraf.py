@@ -19,9 +19,6 @@ with open(configFilename) as configFile:
 
 influx = InfluxDBClient(config['influxDb']['host'], config['influxDb']['port'], config['influxDb']['user'], config['influxDb']['pass'], config['influxDb']['database'])
 influx.create_database(config['influxDb']['database'])
-if config['influxDb']['reset']:
-    info('Resetting database')
-    influx.delete_series(measurement='energy_usage')
 
 running = True
 
@@ -90,6 +87,13 @@ pauseEvent = Event()
 
 INTERVAL_SECS=60
 LAG_SECS=5
+
+
+if config['influxDb']['reset']:
+    info('Resetting database')
+    influx.delete_series(measurement='energy_usage')
+
+
 while running:
     for account in config["accounts"]:
         tmpEndingTime = datetime.datetime.utcnow() - datetime.timedelta(seconds=LAG_SECS)
