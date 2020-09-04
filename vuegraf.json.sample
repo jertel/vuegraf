@@ -5,7 +5,7 @@
         "user": "root",
         "pass": "root",
         "database": "vue",
-        "reset": "false"
+        "reset": false
     },
     "accounts": [
         {
