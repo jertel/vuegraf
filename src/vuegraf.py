@@ -17,7 +17,12 @@ config = {}
 with open(configFilename) as configFile:
     config = json.load(configFile)
 
-influx = InfluxDBClient(config['influxDb']['host'], config['influxDb']['port'], config['influxDb']['user'], config['influxDb']['pass'], config['influxDb']['database'])
+# if 'user'entry exsists within influxdb variable use auth to create db, if none are given dont use any auth
+if 'user' in config['influxDb']:
+    influx = InfluxDBClient(host=config['influxDb']['host'], port=config['influxDb']['port'], username=config['influxDb']['user'], password=config['influxDb']['pass'], database=config['influxDb']['database'])
+else:
+    influx = InfluxDBClient(host=config['influxDb']['host'], port=config['influxDb']['port'], database=config['influxDb']['database'])
+
 influx.create_database(config['influxDb']['database'])
 
 running = True
@@ -108,6 +113,7 @@ while running:
             account['end'] = tmpEndingTime
 
             start = account['end'] - datetime.timedelta(seconds=INTERVAL_SECS)
+
             result = influx.query('select last(usage), time from energy_usage where account_name = \'{}\''.format(account['name']))
             if len(result) > 0:
                 timeStr = next(result.get_points())['time'][:26] + 'Z'
