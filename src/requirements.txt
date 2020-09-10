@@ -1,2 +1,2 @@
 influxdb >= 5.2.3
-pyemvue == 0.9.5
+pyemvue == 0.10.1
