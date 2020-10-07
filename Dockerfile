@@ -12,7 +12,8 @@ COPY src/* ./
 
 RUN pip install --no-cache-dir -r requirements.txt
 
-USER vuegraf
+# A numeric UID is required for runAsNonRoot=true to succeed
+USER $UID
 VOLUME /opt/vuegraf/conf
 
 ENTRYPOINT ["python", "/opt/vuegraf/vuegraf.py"]
