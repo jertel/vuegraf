@@ -16,5 +16,6 @@ RUN pip install --no-cache-dir -r requirements.txt
 USER $UID
 VOLUME /opt/vuegraf/conf
 
-ENTRYPOINT ["python", "/opt/vuegraf/vuegraf.py"]
+ENTRYPOINT ["/opt/vuegraf/vuegraf.py" ]
 CMD ["/opt/vuegraf/conf/vuegraf.json"]
+
