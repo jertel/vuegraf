@@ -19,7 +19,7 @@ config = {}
 with open(configFilename) as configFile:
     config = json.load(configFile)
 
-# if 'user'entry exsists within influxdb variable use auth to create db, if none are given dont use any auth
+# Only authenticate to ingress if 'user' entry was provided in config
 if 'user' in config['influxDb']:
     influx = InfluxDBClient(host=config['influxDb']['host'], port=config['influxDb']['port'], username=config['influxDb']['user'], password=config['influxDb']['pass'], database=config['influxDb']['database'])
 else:
@@ -29,9 +29,11 @@ influx.create_database(config['influxDb']['database'])
 
 running = True
 
+# flush=True helps when running in a container without a tty attached
+# (alternatively, "python -u" or PYTHONUNBUFFERED will help here)
 def log(level, msg):
     now = datetime.datetime.utcnow()
-    print('{} | {} | {}'.format(now, level.ljust(5), msg))
+    print('{} | {} | {}'.format(now, level.ljust(5), msg), flush=True)
 
 def info(msg):
     log("INFO", msg)
@@ -159,3 +161,4 @@ while running:
     pauseEvent.wait(INTERVAL_SECS)
 
 info('Finished')
+
