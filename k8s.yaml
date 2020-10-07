@@ -1,0 +1,85 @@
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: vuegraf
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: vue
+  namespace: vuegraf
+spec:
+  replicas: 1
+  revisionHistoryLimit: 3
+  selector:
+    matchLabels:
+      app: vue
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app: vue
+    spec:
+      containers:
+      - image: docker.io/jertel/vuegraf:latest
+        imagePullPolicy: IfNotPresent
+        name: vue
+        volumeMounts:
+          - mountPath: /opt/vuegraf/conf/vuegraf.json
+            subPath: vuegraf.json
+            name: config
+      securityContext:
+        runAsNonRoot: true
+      volumes:
+      - name: config
+        configMap:
+          name: vuegraf-configs
+
+---
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: vuegraf-configs
+  namespace: vuegraf
+data:
+  # Replace influx db configuration; emporia account information
+  # and channel names
+  vuegraf.json: |
+    {
+      "influxDb": {
+        "host": "influx-svc.influxdb.svc.cluster.local",
+        "port": 8086,
+        "user": "vue-write",
+        "pass": "XXX",
+        "database": "vue",
+        "reset": false
+      },
+      "accounts": [
+        {
+          "name": "accountNameHere",
+          "email": "user@example.com",
+          "password": "YYY",
+          "devices": [
+            {
+              "name": "panelNameHere",
+              "channels": [
+                "Kiln",
+                "Split AC",
+                "Outlets - left",
+                "Outlets - right",
+                "Outlets - central",
+                "Shedroom",
+                "Outlets - rear",
+                "Lights"
+              ]
+            }
+          ]
+        }
+      ]
+    }
+
+
