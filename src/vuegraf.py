@@ -8,7 +8,7 @@ import time
 from threading import Event
 from influxdb import InfluxDBClient
 from pyemvue import PyEmVue
-from pyemvue.enums import Scale, Unit, TotalTimeFrame, TotalUnit
+from pyemvue.enums import Scale, Unit
 
 if len(sys.argv) != 2:
     print('Usage: python {} <config-file>'.format(sys.argv[0]))
@@ -129,16 +129,20 @@ while running:
             account['end'] = tmpEndingTime
 
         try:
-            channels = account['vue'].get_recent_usage(Scale.MINUTE.value)
+            deviceGids = list(account['deviceIdMap'].keys())
+            channels = account['vue'].get_devices_usage(deviceGids, None, scale=Scale.DAY.value, unit=Unit.KWH.value)
             usageDataPoints = []
             device = None
+            secondsInAnHour = 3600
+            wattsInAKw = 1000
             for chan in channels:
                 chanName = lookupChannelName(account, chan)
 
-                usage = account['vue'].get_usage_over_time(chan, start, account['end'])
+                usage, usage_start_time = account['vue'].get_chart_usage(chan, start, account['end'], scale=Scale.SECOND.value, unit=Unit.KWH.value)
                 index = 0
-                for watts in usage:
-                    if watts is not None:
+                for kwhUsage in usage:
+                    if kwhUsage is not None:
+                        watts = float(secondsInAnHour * wattsInAKw) * kwhUsage
                         dataPoint = {
                             "measurement": "energy_usage",
                             "tags": {
