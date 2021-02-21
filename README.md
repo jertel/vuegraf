@@ -124,19 +124,17 @@ python3 vuegraf.py vuegraf.json
 
 ## Container
 
-A Docker container is provided at [hub.docker.com](https://hub.docker.com/r/jertel/vuegraf). Refer to the command below to launch Vuegraf as a container.
+A Docker container is provided at [hub.docker.com](https://hub.docker.com/r/jertel/vuegraf). Refer to the command below to launch Vuegraf as a container. This assumes you have create a folder called vuegraf and placed the vuegraf.json file inside of it.
 
 ```sh
-docker run --name vuegraf -d -v /home/myusername/vuegraf.conf:/opt/vuegraf/conf/vuegraf.json jertel/vuegraf
+docker run --name vuegraf -d -v /home/myusername/vuegraf:/opt/vuegraf/conf jertel/vuegraf
 ```
 
-If you are new to Docker, the next two commands will help you get the InfluxDB and Grafana containers up and running, assuming you have Docker installed and running already. First, create a directory to store your config files and data.
+If you are new to Docker, the next two commands will help you get the InfluxDB and Grafana containers up and running, assuming you have Docker installed and running already. In the above config example, your influxdb host name will be your host's real IP (*not* localhost or 127.0.0.1).
 
 ```sh
-mkdir /home/myusername/influxdb
-mkdir /home/myusername/grafana
-docker run -d --name influxdb -v /home/myusername/influxdb:/var/lib/influxdb -p 8086:8086 influxdb
-docker run -d --name grafana -v /home/myusername/grafana:/var/lib/grafana -p 3000:3000 grafana/grafana
+docker run -d --name influxdb -v /home/myusername/vuegraf:/var/lib/influxdb -p 8086:8086 influxdb
+docker run -d --name grafana -v /home/myusername/vuegraf:/var/lib/grafana -p 3000:3000 grafana/grafana
 ```
 
 # Grafana
