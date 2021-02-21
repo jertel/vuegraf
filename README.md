@@ -130,6 +130,15 @@ A Docker container is provided at [hub.docker.com](https://hub.docker.com/r/jert
 docker run --name vuegraf -d -v /home/myusername/vuegraf.conf:/opt/vuegraf/conf/vuegraf.json jertel/vuegraf
 ```
 
+If you are new to Docker, the next two commands will help you get the InfluxDB and Grafana containers up and running, assuming you have Docker installed and running already. First, create a directory to store your config files and data.
+
+```sh
+mkdir /home/myusername/influxdb
+mkdir /home/myusername/grafana
+docker run -d --name influxdb -v /home/myusername/influxdb:/var/lib/influxdb -p 8086:8086 influxdb
+docker run -d --name grafana -v /home/myusername/grafana:/var/lib/grafana -p 3000:3000 grafana/grafana
+```
+
 # Grafana
 
 Use [Grafana](https://grafana.com "Grafana") to visualize the data collected by Vuegraf. A sample [dashboard.json](https://github.com/jertel/vuegraf/blob/master/dashboard.json) file is provided with this project, to get started. If you only have one Vue device you should remove the Left/Right panel references.
