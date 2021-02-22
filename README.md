@@ -63,7 +63,7 @@ The minimum configuration required to start Vuegraf is shown below:
 ```
 
 ## Advanced Configuration
-To provide more user-friendly names of each Vue device and branch circuit, the following device configuration can be added to the configuration file, within the account block. List each device and circuit in the order that you added them to the Vue mobile app. The channel names do not need to match the names specified in the Vue mobile app but the device names must match.
+To provide more user-friendly names of each Vue device and branch circuit, the following device configuration can be added to the configuration file, within the account block. List each device and circuit in the order that you added them to the Vue mobile app. The channel names do not need to match the names specified in the Vue mobile app but the device names must match. The below example shows two 8-channel Vue devices for a home with two breaker panels.
 
 ```json
             "devices": [
@@ -93,12 +93,41 @@ To provide more user-friendly names of each Vue device and branch circuit, the f
                         "Sprinkler Pump"        
                     ]
                 }
+            ]
+```
+
+## Smart Plugs
+
+To include an Emporia smart plug in the configuration, add each plug as it's own device, without channels. Again, the name of the Smart Plug device must exactly match the name you gave the device in the Vue app during initial registration.
+
+```json
+            devices: [
+                {
+                    "name": "Main Panel",
+                    "channels": [
+                        "Air Conditioner",
+                        "Furnace",
+                        "Coffee Maker",
+                        "Oven",
+                        "Dishwasher",
+                        "Tesla Charger",
+                        "Refrigerator",
+                        "Office"
+                    ]
+                },
+                {
+                    "name": "Projector Plug",
+                },
+                {
+                    "name": "3D-Printer Plug",
+                }
+            ]
 ```
 
 # Running
-Vuegraf can be run either as a host process, or as a container.
+Vuegraf can be run either as a host process, or as a container (recommended).
 
-## Host
+## Host Process
 
 Ensure Python 3 and Pip are both installed. Install the required dependencies:
 
@@ -122,7 +151,7 @@ or, on some Linux installations:
 python3 vuegraf.py vuegraf.json
 ```
 
-## Container
+## Container (recommended)
 
 A Docker container is provided at [hub.docker.com](https://hub.docker.com/r/jertel/vuegraf). Refer to the command below to launch Vuegraf as a container. This assumes you have create a folder called vuegraf and placed the vuegraf.json file inside of it.
 
