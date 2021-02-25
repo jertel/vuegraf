@@ -1,0 +1,37 @@
+name: 'Build'
+
+on:
+  push:
+    branches:
+      - master
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+
+    - name: Checkout
+      uses: actions/checkout@v2
+      with:
+        fetch-depth: '0'
+
+    - name: Login
+      env:
+        DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
+        DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+      run: |
+        echo "${DOCKER_PASSWORD}" | docker login --username ${DOCKER_USERNAME} --password-stdin
+
+    - name: Install buildx
+      id: buildx
+      uses: crazy-max/ghaction-docker-buildx@v1
+      with:
+        version: latest
+
+    - name: Build and Push
+      run: |
+          docker buildx build \
+          --platform=linux/amd64,linux/arm/v7,linux/arm64 \
+          --output "type=image,push=true" \
+          --file ./Dockerfile . \
+          --tag $(echo "${DOCKER_USERNAME}" | tr '[:upper:]' '[:lower:]')/vuegraf:latest
