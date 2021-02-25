@@ -5,6 +5,9 @@ on:
     branches:
       - master
 
+  release:
+    types: [created]
+
 jobs:
   release:
     runs-on: ubuntu-latest
@@ -32,8 +35,9 @@ jobs:
       env:
         DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
       run: |
+          [ -n "${GITHUB_REF}" && "${GITHUB_REF}" == "master" ] && TAG="${GITHUB_REF}" || TAG="latest"
           docker buildx build \
           --platform=linux/amd64,linux/arm/v7,linux/arm64 \
           --output "type=image,push=true" \
           --file ./Dockerfile . \
-          --tag $(echo "${DOCKER_USERNAME}" | tr '[:upper:]' '[:lower:]')/vuegraf:latest
+          --tag $(echo "${DOCKER_USERNAME}" | tr '[:upper:]' '[:lower:]')/vuegraf:${TAG}
