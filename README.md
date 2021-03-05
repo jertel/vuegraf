@@ -56,7 +56,7 @@ The minimum configuration required to start Vuegraf is shown below:
         {
             "name": "Primary Residence",
             "email": "my@email.address",
-            "password": "my-emporia-password",
+            "password": "my-emporia-password"
         }
     ]
 }
@@ -116,10 +116,10 @@ To include an Emporia smart plug in the configuration, add each plug as it's own
                     ]
                 },
                 {
-                    "name": "Projector Plug",
+                    "name": "Projector Plug"
                 },
                 {
-                    "name": "3D-Printer Plug",
+                    "name": "3D-Printer Plug"
                 }
             ]
 ```
