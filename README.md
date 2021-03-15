@@ -168,7 +168,7 @@ docker run -d --name grafana -v /home/myusername/vuegraf:/var/lib/grafana -p 300
 
 ### Docker Compose
 
-For those that want to run Vuegraf using Docker Compose, the following files have been included: docker-compose.yaml and docker-compose-run.sh. Copy the`docker-compose.yaml.template` file to a new file called `docker-compose.yaml`. In the newly copied file, `vuegraf.volumes` values will need to be changed to the same directory you have created your vuegraf.json file. Additionally, adjust the persistent host storage path for the Grafana and InfluxDB data stores.
+For those that want to run Vuegraf using Docker Compose, the following files have been included: `docker-compose.yaml.template` and `docker-compose-run.sh`. Copy the`docker-compose.yaml.template` file to a new file called `docker-compose.yaml`. In the newly copied file, `vuegraf.volumes` values will need to be changed to the same directory you have created your vuegraf.json file. Additionally, adjust the persistent host storage path for the Grafana and InfluxDB data volumes.
 
 Finally run the `docker-compose-run.sh` script to start up the multi-container application. 
 
