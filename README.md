@@ -185,7 +185,9 @@ Grafana also supports alerts, with a number of alert channels, such as Email or 
 ## Docker Compose
 
 For those that want to run Vuegraf using Docker Compose, the following files have been included: docker-compose.yaml and docker-compose-run.sh.
+
 In docker-compose.yaml the vuegraf: volumes: will need to be changed to the same directory you have created your vuegraf.json file.
+
 After updating docker-compose.yaml run the script to start up the multi-container application. 
 
 ```sh
