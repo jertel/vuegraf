@@ -166,6 +166,16 @@ docker run -d --name influxdb:1.8-alpine -v /home/myusername/vuegraf:/var/lib/in
 docker run -d --name grafana -v /home/myusername/vuegraf:/var/lib/grafana -p 3000:3000 grafana/grafana
 ```
 
+### Docker Compose
+
+For those that want to run Vuegraf using Docker Compose, the following files have been included: docker-compose.yaml and docker-compose-run.sh. Copy the`docker-compose.yaml.template` file to a new file called `docker-compose.yaml`. In the newly copied file, `vuegraf.volumes` values will need to be changed to the same directory you have created your vuegraf.json file. Additionally, adjust the persistent host storage path for the Grafana and InfluxDB data stores.
+
+Finally run the `docker-compose-run.sh` script to start up the multi-container application. 
+
+```sh
+./docker-compose-run.sh
+```
+
 # Grafana
 
 Use [Grafana](https://grafana.com "Grafana") to visualize the data collected by Vuegraf. A sample [dashboard.json](https://github.com/jertel/vuegraf/blob/master/dashboard.json) file is provided with this project, to get started. If you only have one Vue device you should remove the Left/Right panel references.
@@ -181,18 +191,6 @@ A graph query is shown below, showing a simple filter to pull data for a specifi
 Grafana also supports alerts, with a number of alert channels, such as Email or Slack.
 
 ![Alert Example Screenshot](https://github.com/jertel/vuegraf/blob/master/screenshots/alert.png?raw=true "Alert Example")
-
-## Docker Compose
-
-For those that want to run Vuegraf using Docker Compose, the following files have been included: docker-compose.yaml and docker-compose-run.sh.
-
-In docker-compose.yaml the vuegraf: volumes: will need to be changed to the same directory you have created your vuegraf.json file.
-
-After updating docker-compose.yaml run the script to start up the multi-container application. 
-
-```sh
-./docker-compose-run.sh
-```
 
 # License
 
