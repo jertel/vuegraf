@@ -1,7 +1,7 @@
 version: "3.5"
 services:
   influxdb: 
-     image: influxdb:1.8.4-alpine #InfluxDB v2 requires authentication so set to v1
+     image: influxdb:1.8-alpine #InfluxDB v2 requires authentication so set to v1
      container_name: influxdb
      ports:
        - 8086:8086
