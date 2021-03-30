@@ -40,7 +40,9 @@ Important: Ensure that sufficient protection is in place on this configuration f
 A [sample configuration file](https://github.com/jertel/vuegraf/blob/master/vuegraf.json.sample "Sample Vuegraf Configuration File") is provided in this repository, and details are described below.
 
 ## Minimal Configuration
-The minimum configuration required to start Vuegraf is shown below:
+The minimum configuration required to start Vuegraf is shown below.
+
+InfluxDB v1:
 
 ```json
 {
@@ -50,6 +52,28 @@ The minimum configuration required to start Vuegraf is shown below:
         "user": "root",
         "pass": "root",
         "database": "vue",
+        "reset": false
+    },
+    "accounts": [
+        {
+            "name": "Primary Residence",
+            "email": "my@email.address",
+            "password": "my-emporia-password"
+        }
+    ]
+}
+```
+
+InfluxDB v2:
+
+```json
+{
+    "influxDb": {
+        "version": 2,
+        "url": "http://my.influxdb.hostname:8086",
+        "org": "vuegraf",
+        "bucket": "vuegraf",
+        "token": "veugraf-secret-token",
         "reset": false
     },
     "accounts": [
@@ -159,7 +183,7 @@ A Docker container is provided at [hub.docker.com](https://hub.docker.com/r/jert
 docker run --name vuegraf -d -v /home/myusername/vuegraf:/opt/vuegraf/conf jertel/vuegraf
 ```
 
-If you are new to Docker, the next two commands will help you get the InfluxDB and Grafana containers up and running, assuming you have Docker installed and running already. In the above config example, your influxdb host name will be your host's real IP (*not* localhost or 127.0.0.1).
+If you are new to Docker, the next two commands will help you get the InfluxDB (version 1) and Grafana containers up and running, assuming you have Docker installed and running already. In the above config example, your influxdb host name will be your host's real IP (*not* localhost or 127.0.0.1).
 
 ```sh
 docker run -d --name influxdb:1.8-alpine -v /home/myusername/vuegraf:/var/lib/influxdb -p 8086:8086 influxdb
@@ -168,7 +192,7 @@ docker run -d --name grafana -v /home/myusername/vuegraf:/var/lib/grafana -p 300
 
 ### Docker Compose
 
-For those that want to run Vuegraf using Docker Compose, the following files have been included: `docker-compose.yaml.template` and `docker-compose-run.sh`. Copy the`docker-compose.yaml.template` file to a new file called `docker-compose.yaml`. In the newly copied file, `vuegraf.volumes` values will need to be changed to the same directory you have created your vuegraf.json file. Additionally, adjust the persistent host storage path for the Grafana and InfluxDB data volumes.
+For those that want to run Vuegraf using Docker Compose, the following files have been included: `docker-compose.yaml.template` and `docker-compose-run.sh`. These assume InfluxDB version 1 will be utilized. Copy the`docker-compose.yaml.template` file to a new file called `docker-compose.yaml`. In the newly copied file, `vuegraf.volumes` values will need to be changed to the same directory you have created your vuegraf.json file. Additionally, adjust the persistent host storage path for the Grafana and InfluxDB data volumes.
 
 Finally run the `docker-compose-run.sh` script to start up the multi-container application. 
 
@@ -178,7 +202,9 @@ Finally run the `docker-compose-run.sh` script to start up the multi-container a
 
 # Grafana
 
-Use [Grafana](https://grafana.com "Grafana") to visualize the data collected by Vuegraf. A sample [dashboard.json](https://github.com/jertel/vuegraf/blob/master/dashboard.json) file is provided with this project, to get started. If you only have one Vue device you should remove the Left/Right panel references.
+Use [Grafana](https://grafana.com "Grafana") to visualize the data collected by Vuegraf. A sample [dashboard.json](https://github.com/jertel/vuegraf/blob/master/dashboard.json) file is provided with this project, to get started. However, this sample dashboard is only compatible with InfluxDB version 1.
+
+If you only have one Vue device you should remove the Left/Right panel references.
 
 Refer to the screenshots below for examples on how to define the InfluxDB data source, graphs, and alerts.
 
