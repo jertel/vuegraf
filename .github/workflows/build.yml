@@ -39,7 +39,7 @@ jobs:
           [ -n "${GITHUB_REF}" ] && [ "${GITHUB_REF}" != "refs/heads/master" ] && TAG="${GITHUB_REF}" || TAG="latest"
           echo "TAG: ${TAG}"
           docker buildx build \
-          --platform=linux/amd64,linux/arm/v7,linux/arm64 \
+          --platform=linux/amd64 \
           --output "type=image,push=true" \
           --file ./Dockerfile . \
           --tag $(echo "${DOCKER_USERNAME}" | tr '[:upper:]' '[:lower:]')/vuegraf:${TAG}
