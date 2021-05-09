@@ -37,6 +37,7 @@ jobs:
       run: |
           echo "GITHUB_REF: ${GITHUB_REF}"
           [ -n "${GITHUB_REF}" ] && [ "${GITHUB_REF}" != "refs/heads/master" ] && TAG="${GITHUB_REF}" || TAG="latest"
+          TAG=$(echo "$TAG" | sed -e 's,.*/\(.*\),\1,')
           echo "TAG: ${TAG}"
           docker buildx build \
           --platform=linux/amd64 \
