@@ -5,6 +5,7 @@ import json
 import signal
 import sys
 import time
+import traceback
 from threading import Event
 
 # InfluxDB v1
@@ -193,47 +194,50 @@ while running:
         try:
             deviceGids = list(account['deviceIdMap'].keys())
             channels = account['vue'].get_devices_usage(deviceGids, None, scale=Scale.DAY.value, unit=Unit.KWH.value)
-            usageDataPoints = []
-            device = None
-            secondsInAnHour = 3600
-            wattsInAKw = 1000
-            for chan in channels:
-                chanName = lookupChannelName(account, chan)
+            if channels is not None:
+                usageDataPoints = []
+                device = None
+                secondsInAnHour = 3600
+                wattsInAKw = 1000
+                for chan in channels:
+                    chanName = lookupChannelName(account, chan)
 
-                try:
-                    usage, usage_start_time = account['vue'].get_chart_usage(chan, start, account['end'], scale=Scale.SECOND.value, unit=Unit.KWH.value)
-                    index = 0
-                    for kwhUsage in usage:
-                        if kwhUsage is not None:
-                            watts = float(secondsInAnHour * wattsInAKw) * kwhUsage
-                            if influxVersion == 2:
-                                dataPoint = influxdb_client.Point("energy_usage").tag("account_name", account['name']).tag("device_name", chanName).field("usage", watts).time(time=start + datetime.timedelta(seconds=index))
-                                usageDataPoints.append(dataPoint)
-                            else:
-                                dataPoint = {
-                                    "measurement": "energy_usage",
-                                    "tags": {
-                                        "account_name": account['name'],
-                                        "device_name": chanName,
-                                    },
-                                    "fields": {
-                                        "usage": watts,
-                                    },
-                                    "time": start + datetime.timedelta(seconds=index)
-                                }
-                                usageDataPoints.append(dataPoint)
-                            index = index + 1
-                except:
-                    error('Failed to fetch metrics: {}'.format(sys.exc_info()))
-                    error('Failed on: deviceGid={}; chanNum={}; chanName={};'.format(chan.device_gid, chan.channel_num, chanName))
+                    try:
+                        usage, usage_start_time = account['vue'].get_chart_usage(chan, start, account['end'], scale=Scale.SECOND.value, unit=Unit.KWH.value)
+                        index = 0
+                        if usage is not None:
+                            for kwhUsage in usage:
+                                if kwhUsage is not None:
+                                    watts = float(secondsInAnHour * wattsInAKw) * kwhUsage
+                                    if influxVersion == 2:
+                                        dataPoint = influxdb_client.Point("energy_usage").tag("account_name", account['name']).tag("device_name", chanName).field("usage", watts).time(time=start + datetime.timedelta(seconds=index))
+                                        usageDataPoints.append(dataPoint)
+                                    else:
+                                        dataPoint = {
+                                            "measurement": "energy_usage",
+                                            "tags": {
+                                                "account_name": account['name'],
+                                                "device_name": chanName,
+                                            },
+                                            "fields": {
+                                                "usage": watts,
+                                            },
+                                            "time": start + datetime.timedelta(seconds=index)
+                                        }
+                                        usageDataPoints.append(dataPoint)
+                                    index = index + 1
+                    except:
+                        error('Failed to fetch metrics: {}'.format(sys.exc_info()))
+                        error('Failed on: deviceGid={}; chanNum={}; chanName={};'.format(chan.device_gid, chan.channel_num, chanName))
 
-            info('Submitted datapoints to database; account="{}"; points={}'.format(account['name'], len(usageDataPoints)))
-            if influxVersion == 2:
-                write_api.write(bucket=bucket, record=usageDataPoints)
-            else:
-                influx.write_points(usageDataPoints)
+                info('Submitting datapoints to database; account="{}"; points={}'.format(account['name'], len(usageDataPoints)))
+                if influxVersion == 2:
+                    write_api.write(bucket=bucket, record=usageDataPoints)
+                else:
+                    influx.write_points(usageDataPoints)
         except:
             error('Failed to record new usage data: {}'.format(sys.exc_info())) 
+            traceback.print_exc()
 
     pauseEvent.wait(INTERVAL_SECS)
 
