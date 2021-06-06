@@ -35,6 +35,11 @@ def handleExit(signum, frame):
     running = False
     pauseEvent.set()
 
+def getConfigValue(key, defaultValue):
+    if key in config:
+        return config[key]
+    return defaultValue
+
 try:
     if len(sys.argv) != 2:
         print('Usage: python {} <config-file>'.format(sys.argv[0]))
@@ -135,12 +140,12 @@ try:
 
     pauseEvent = Event()
 
-    INTERVAL_SECS=60
-    LAG_SECS=5
+    intervalSecs=getConfigValue("updateIntervalSecs", 60)
+    lagSecs=getConfigValue("lagSecs", 5)
 
     while running:
         for account in config["accounts"]:
-            tmpEndingTime = datetime.datetime.utcnow() - datetime.timedelta(seconds=LAG_SECS)
+            tmpEndingTime = datetime.datetime.utcnow() - datetime.timedelta(seconds=lagSecs)
 
             if 'vue' not in account:
                 account['vue'] = PyEmVue()
@@ -151,7 +156,7 @@ try:
 
                 account['end'] = tmpEndingTime
 
-                start = account['end'] - datetime.timedelta(seconds=INTERVAL_SECS)
+                start = account['end'] - datetime.timedelta(seconds=intervalSecs)
 
                 tmpStartingTime = start
                 timeStr = ''
@@ -240,7 +245,7 @@ try:
                 error('Failed to record new usage data: {}'.format(sys.exc_info())) 
                 traceback.print_exc()
 
-        pauseEvent.wait(INTERVAL_SECS)
+        pauseEvent.wait(intervalSecs)
 
     info('Finished')
 except:
