@@ -87,7 +87,7 @@
             },
             {
               "params": [
-                "none"
+                "linear"
               ],
               "type": "fill"
             }
@@ -229,7 +229,7 @@
             },
             {
               "params": [
-                "none"
+                "linear"
               ],
               "type": "fill"
             }
@@ -237,7 +237,7 @@
           "measurement": "energy_usage",
           "orderByTime": "ASC",
           "policy": "default",
-          "query": "SELECT mean(\"usage\") FROM \"energy_usage\" WHERE (\"device_name\" = 'Kiln') AND $timeFilter GROUP BY time($__interval) fill(null)",
+          "query": "SELECT mean(\"usage\") FROM \"energy_usage\" WHERE (\"device_name\" = 'Kiln') AND $timeFilter GROUP BY time($__interval) fill(linear)",
           "rawQuery": false,
           "refId": "A",
           "resultFormat": "time_series",
@@ -412,7 +412,7 @@
             },
             {
               "params": [
-                "none"
+                "linear"
               ],
               "type": "fill"
             }
@@ -569,7 +569,7 @@
             },
             {
               "params": [
-                "none"
+                "linear"
               ],
               "type": "fill"
             }
@@ -743,7 +743,7 @@
             },
             {
               "params": [
-                "none"
+                "linear"
               ],
               "type": "fill"
             }
@@ -925,7 +925,7 @@
             },
             {
               "params": [
-                "none"
+                "linear"
               ],
               "type": "fill"
             }
@@ -933,7 +933,7 @@
           "measurement": "energy_usage",
           "orderByTime": "ASC",
           "policy": "default",
-          "query": "SELECT mean(\"usage\") *5 FROM \"energy_usage\" WHERE (\"device_name\" =~ /Outlets|Lights/) AND $timeFilter GROUP BY time($__interval) fill(null)",
+          "query": "SELECT mean(\"usage\") *5 FROM \"energy_usage\" WHERE (\"device_name\" =~ /Outlets|Lights/) AND $timeFilter GROUP BY time($__interval) fill(linear)",
           "rawQuery": false,
           "refId": "A",
           "resultFormat": "time_series",
