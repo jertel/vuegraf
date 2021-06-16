@@ -20,7 +20,7 @@ RUN set -x && \
 # Copying code in after requirements are built optimizes rebuild
 # time, with only a marginal increate in image layer size; chmod
 # is superfluous if "git update-index --chmod=+x ..." is done.
-COPY src/*.py ./
+COPY src/vuegraf/*.py ./
 RUN  chmod a+x *.py
 
 # A numeric UID is required for runAsNonRoot=true to succeed
