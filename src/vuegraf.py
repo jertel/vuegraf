@@ -145,96 +145,41 @@ try:
 
     while running:
         for account in config["accounts"]:
-            tmpEndingTime = datetime.datetime.utcnow() - datetime.timedelta(seconds=lagSecs)
-
             if 'vue' not in account:
                 account['vue'] = PyEmVue()
                 account['vue'].login(username=account['email'], password=account['password'])
                 info('Login completed')
-
                 populateDevices(account)
 
-                account['end'] = tmpEndingTime
-
-                start = account['end'] - datetime.timedelta(seconds=intervalSecs)
-
-                tmpStartingTime = start
-                timeStr = ''
-                if influxVersion == 2:
-                    timeCol = '_time'
-                    result = query_api.query('from(bucket:"' + bucket + '") ' +
-                                             '|> range(start: -3w) ' +
-                                             '|> filter(fn: (r) => ' +
-                                             '  r._measurement == "energy_usage" and ' +
-                                             '  r._field == "usage" and ' +
-                                             '  r.account_name == "' + account['name'] + '")' +
-                                             '|> last()')
-
-                    if len(result) > 0 and len(result[0].records) > 0:
-                        lastRecord = result[0].records[0]
-                        timeStr = lastRecord['_time'].isoformat()
-                else:
-                    result = influx.query('select last(usage), time from energy_usage where account_name = \'{}\''.format(account['name']))
-                    if len(result) > 0:
-                        timeStr = next(result.get_points())['time']
-
-                if len(timeStr) > 0:
-                    timeStr = timeStr[:26]
-                    if not timeStr.endswith('Z'):
-                        timeStr = timeStr + 'Z'
-
-                    tmpStartingTime = datetime.datetime.strptime(timeStr, '%Y-%m-%dT%H:%M:%S.%fZ')
-
-                # Avoid overlapping data in the event that vuegraf is quickly restarted.
-                # This does not attempt to fill in gaps for scenarios when vuegraf is offline for long
-                # periods.
-                if tmpStartingTime > start:
-                    start = tmpStartingTime
-                    info("Continuing from most recent record at time {}".format(start))
-                else:
-                    info("Starting as of now {} (last known time is {})".format(start, tmpStartingTime))
-            else:
-                start = account['end'] + datetime.timedelta(seconds=1)
-                account['end'] = tmpEndingTime
-
             try:
+                timestamp = datetime.datetime.utcnow() - datetime.timedelta(seconds=lagSecs)
                 deviceGids = list(account['deviceIdMap'].keys())
-                channels = account['vue'].get_devices_usage(deviceGids, None, scale=Scale.DAY.value, unit=Unit.KWH.value)
+                channels = account['vue'].get_devices_usage(deviceGids, timestamp, scale=Scale.MINUTE.value, unit=Unit.KWH.value)
                 if channels is not None:
                     usageDataPoints = []
-                    device = None
-                    secondsInAnHour = 3600
+                    minutesInAnHour = 60
                     wattsInAKw = 1000
                     for chan in channels:
                         chanName = lookupChannelName(account, chan)
-
-                        try:
-                            usage, usage_start_time = account['vue'].get_chart_usage(chan, start, account['end'], scale=Scale.SECOND.value, unit=Unit.KWH.value)
-                            index = 0
-                            if usage is not None:
-                                for kwhUsage in usage:
-                                    if kwhUsage is not None:
-                                        watts = float(secondsInAnHour * wattsInAKw) * kwhUsage
-                                        if influxVersion == 2:
-                                            dataPoint = influxdb_client.Point("energy_usage").tag("account_name", account['name']).tag("device_name", chanName).field("usage", watts).time(time=start + datetime.timedelta(seconds=index))
-                                            usageDataPoints.append(dataPoint)
-                                        else:
-                                            dataPoint = {
-                                                "measurement": "energy_usage",
-                                                "tags": {
-                                                    "account_name": account['name'],
-                                                    "device_name": chanName,
-                                                },
-                                                "fields": {
-                                                    "usage": watts,
-                                                },
-                                                "time": start + datetime.timedelta(seconds=index)
-                                            }
-                                            usageDataPoints.append(dataPoint)
-                                        index = index + 1
-                        except:
-                            error('Failed to fetch metrics: {}'.format(sys.exc_info()))
-                            error('Failed on: deviceGid={}; chanNum={}; chanName={};'.format(chan.device_gid, chan.channel_num, chanName))
+                        kwhUsage = chan.usage
+                        if kwhUsage is not None:
+                            watts = float(minutesInAnHour * wattsInAKw) * kwhUsage
+                            dataPoint = None
+                            if influxVersion == 2:
+                                dataPoint = influxdb_client.Point("energy_usage").tag("account_name", account['name']).tag("device_name", chanName).field("usage", watts).time(time=start + datetime.timedelta(seconds=index))
+                            else:
+                                dataPoint = {
+                                    "measurement": "energy_usage",
+                                    "tags": {
+                                        "account_name": account['name'],
+                                        "device_name": chanName,
+                                    },
+                                    "fields": {
+                                        "usage": watts,
+                                    },
+                                    "time": timestamp
+                                }
+                            usageDataPoints.append(dataPoint)
 
                     info('Submitting datapoints to database; account="{}"; points={}'.format(account['name'], len(usageDataPoints)))
                     if influxVersion == 2:
