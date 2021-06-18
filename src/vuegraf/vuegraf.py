@@ -166,7 +166,11 @@ try:
                             watts = float(minutesInAnHour * wattsInAKw) * kwhUsage
                             dataPoint = None
                             if influxVersion == 2:
-                                dataPoint = influxdb_client.Point("energy_usage").tag("account_name", account['name']).tag("device_name", chanName).field("usage", watts).time(time=start + datetime.timedelta(seconds=index))
+                                dataPoint = influxdb_client.Point("energy_usage") \
+                                    .tag("account_name", account['name']) \
+                                    .tag("device_name", chanName) \
+                                    .field("usage", watts) \
+                                    .time(time=timestamp)
                             else:
                                 dataPoint = {
                                     "measurement": "energy_usage",
