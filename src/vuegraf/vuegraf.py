@@ -40,6 +40,7 @@ def getConfigValue(key, defaultValue):
         return config[key]
     return defaultValue
 
+startupTime = datetime.datetime.utcnow()
 try:
     if len(sys.argv) != 2:
         print('Usage: python {} <config-file>'.format(sys.argv[0]))
@@ -75,7 +76,7 @@ try:
             info('Resetting database')
             delete_api = influx2.delete_api()
             start = "1970-01-01T00:00:00Z"
-            stop = datetime.datetime.utcnow().isoformat(timespec='seconds')
+            stop = startupTime.isoformat(timespec='seconds')
             delete_api.delete(start, stop, '_measurement="energy_usage"', bucket=bucket, org=org)    
     else:
         info('Using InfluxDB version 1')
@@ -135,15 +136,41 @@ try:
                         name = deviceName
         return name
 
+    def createDataPoint(account, chanName, watts, timestamp):
+        dataPoint = None
+        if influxVersion == 2:
+            dataPoint = influxdb_client.Point("energy_usage") \
+                .tag("account_name", account['name']) \
+                .tag("device_name", chanName) \
+                .field("usage", watts) \
+                .time(time=timestamp)
+        else:
+            dataPoint = {
+                "measurement": "energy_usage",
+                "tags": {
+                    "account_name": account['name'],
+                    "device_name": chanName,
+                },
+                "fields": {
+                    "usage": watts,
+                },
+                "time": timestamp
+            }
+        return dataPoint
+
     signal.signal(signal.SIGINT, handleExit)
     signal.signal(signal.SIGHUP, handleExit)
 
     pauseEvent = Event()
 
     intervalSecs=getConfigValue("updateIntervalSecs", 60)
+    detailedIntervalSecs=getConfigValue("detailedIntervalSecs", 3600)
     lagSecs=getConfigValue("lagSecs", 5)
+    detailedStartTime = startupTime
 
     while running:
+        now = datetime.datetime.utcnow()
+
         for account in config["accounts"]:
             if 'vue' not in account:
                 account['vue'] = PyEmVue()
@@ -152,44 +179,44 @@ try:
                 populateDevices(account)
 
             try:
-                timestamp = datetime.datetime.utcnow() - datetime.timedelta(seconds=lagSecs)
+                detailedEnabled = False
+                stopTime = now - datetime.timedelta(seconds=lagSecs)
+                detailedEnabled = (stopTime - detailedStartTime).total_seconds() >= detailedIntervalSecs
+
                 deviceGids = list(account['deviceIdMap'].keys())
-                channels = account['vue'].get_devices_usage(deviceGids, timestamp, scale=Scale.MINUTE.value, unit=Unit.KWH.value)
+                channels = account['vue'].get_devices_usage(deviceGids, stopTime, scale=Scale.MINUTE.value, unit=Unit.KWH.value)
                 if channels is not None:
                     usageDataPoints = []
                     minutesInAnHour = 60
+                    secondsInAMinute = 60
                     wattsInAKw = 1000
+
                     for chan in channels:
-                        chanName = lookupChannelName(account, chan)
                         kwhUsage = chan.usage
                         if kwhUsage is not None:
+                            chanName = lookupChannelName(account, chan)
                             watts = float(minutesInAnHour * wattsInAKw) * kwhUsage
-                            dataPoint = None
-                            if influxVersion == 2:
-                                dataPoint = influxdb_client.Point("energy_usage") \
-                                    .tag("account_name", account['name']) \
-                                    .tag("device_name", chanName) \
-                                    .field("usage", watts) \
-                                    .time(time=timestamp)
-                            else:
-                                dataPoint = {
-                                    "measurement": "energy_usage",
-                                    "tags": {
-                                        "account_name": account['name'],
-                                        "device_name": chanName,
-                                    },
-                                    "fields": {
-                                        "usage": watts,
-                                    },
-                                    "time": timestamp
-                                }
-                            usageDataPoints.append(dataPoint)
+                            timestamp = stopTime
+                            usageDataPoints.append(createDataPoint(account, chanName, watts, timestamp))
+
+                        if detailedEnabled:
+                            usage, usage_start_time = account['vue'].get_chart_usage(chan, detailedStartTime, stopTime, scale=Scale.SECOND.value, unit=Unit.KWH.value)
+                            index = 0
+                            for kwhUsage in usage:
+                                timestamp = detailedStartTime + datetime.timedelta(seconds=index)
+                                watts = float(secondsInAMinute * minutesInAnHour * wattsInAKw) * kwhUsage
+                                usageDataPoints.append(createDataPoint(account, chanName, watts, timestamp))
+                                index += 1
 
                     info('Submitting datapoints to database; account="{}"; points={}'.format(account['name'], len(usageDataPoints)))
                     if influxVersion == 2:
                         write_api.write(bucket=bucket, record=usageDataPoints)
                     else:
                         influx.write_points(usageDataPoints)
+
+                if detailedEnabled:
+                    detailedStartTime = stopTime + datetime.timedelta(seconds=1)
+
             except:
                 error('Failed to record new usage data: {}'.format(sys.exc_info())) 
                 traceback.print_exc()
