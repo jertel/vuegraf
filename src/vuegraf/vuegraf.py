@@ -136,7 +136,7 @@ try:
                         name = deviceName
         return name
 
-    def createDataPoint(account, chanName, watts, timestamp):
+    def createDataPoint(account, chanName, watts, timestamp, detailed):
         dataPoint = None
         if influxVersion == 2:
             dataPoint = influxdb_client.Point("energy_usage") \
@@ -150,6 +150,7 @@ try:
                 "tags": {
                     "account_name": account['name'],
                     "device_name": chanName,
+                    "detailed": detailed,
                 },
                 "fields": {
                     "usage": watts,
@@ -195,7 +196,7 @@ try:
                             chanName = lookupChannelName(account, chan)
                             watts = float(minutesInAnHour * wattsInAKw) * kwhUsage
                             timestamp = stopTime
-                            usageDataPoints.append(createDataPoint(account, chanName, watts, timestamp))
+                            usageDataPoints.append(createDataPoint(account, chanName, watts, timestamp, False))
 
                         if detailedEnabled:
                             usage, usage_start_time = account['vue'].get_chart_usage(chan, detailedStartTime, stopTime, scale=Scale.SECOND.value, unit=Unit.KWH.value)
@@ -203,7 +204,7 @@ try:
                             for kwhUsage in usage:
                                 timestamp = detailedStartTime + datetime.timedelta(seconds=index)
                                 watts = float(secondsInAMinute * minutesInAnHour * wattsInAKw) * kwhUsage
-                                usageDataPoints.append(createDataPoint(account, chanName, watts, timestamp))
+                                usageDataPoints.append(createDataPoint(account, chanName, watts, timestamp, True))
                                 index += 1
 
                     info('Submitting datapoints to database; account="{}"; points={}'.format(account['name'], len(usageDataPoints)))
