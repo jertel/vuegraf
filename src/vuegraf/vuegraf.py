@@ -170,6 +170,8 @@ try:
 
     while running:
         now = datetime.datetime.utcnow()
+        stopTime = now - datetime.timedelta(seconds=lagSecs)
+        detailedEnabled = (stopTime - detailedStartTime).total_seconds() >= detailedIntervalSecs
 
         for account in config["accounts"]:
             if 'vue' not in account:
@@ -179,10 +181,6 @@ try:
                 populateDevices(account)
 
             try:
-                detailedEnabled = False
-                stopTime = now - datetime.timedelta(seconds=lagSecs)
-                detailedEnabled = (stopTime - detailedStartTime).total_seconds() >= detailedIntervalSecs
-
                 deviceGids = list(account['deviceIdMap'].keys())
                 channels = account['vue'].get_devices_usage(deviceGids, stopTime, scale=Scale.MINUTE.value, unit=Unit.KWH.value)
                 if channels is not None:
@@ -214,12 +212,12 @@ try:
                     else:
                         influx.write_points(usageDataPoints)
 
-                if detailedEnabled:
-                    detailedStartTime = stopTime + datetime.timedelta(seconds=1)
-
             except:
                 error('Failed to record new usage data: {}'.format(sys.exc_info())) 
                 traceback.print_exc()
+
+        if detailedEnabled:
+            detailedStartTime = stopTime + datetime.timedelta(seconds=1)
 
         pauseEvent.wait(intervalSecs)
 
