@@ -183,29 +183,31 @@ try:
 
             try:
                 deviceGids = list(account['deviceIdMap'].keys())
-                channels = account['vue'].get_devices_usage(deviceGids, stopTime, scale=Scale.MINUTE.value, unit=Unit.KWH.value)
-                if channels is not None:
+                usages = account['vue'].get_device_list_usage(deviceGids, stopTime, scale=Scale.MINUTE.value, unit=Unit.KWH.value)
+                if usages is not None:
                     usageDataPoints = []
                     minutesInAnHour = 60
                     secondsInAMinute = 60
                     wattsInAKw = 1000
 
-                    for chan in channels:
-                        kwhUsage = chan.usage
-                        if kwhUsage is not None:
-                            chanName = lookupChannelName(account, chan)
-                            watts = float(minutesInAnHour * wattsInAKw) * kwhUsage
-                            timestamp = stopTime
-                            usageDataPoints.append(createDataPoint(account, chanName, watts, timestamp, False))
+                    for gid, device in usages.items():
+                        for chanNum, chan in device.channels.items():
+                            if chanNum != 'Balance':
+                                kwhUsage = chan.usage
+                                if kwhUsage is not None:
+                                    chanName = lookupChannelName(account, chan)
+                                    watts = float(minutesInAnHour * wattsInAKw) * kwhUsage
+                                    timestamp = stopTime
+                                    usageDataPoints.append(createDataPoint(account, chanName, watts, timestamp, False))
 
-                        if detailedEnabled:
-                            usage, usage_start_time = account['vue'].get_chart_usage(chan, detailedStartTime, stopTime, scale=Scale.SECOND.value, unit=Unit.KWH.value)
-                            index = 0
-                            for kwhUsage in usage:
-                                timestamp = detailedStartTime + datetime.timedelta(seconds=index)
-                                watts = float(secondsInAMinute * minutesInAnHour * wattsInAKw) * kwhUsage
-                                usageDataPoints.append(createDataPoint(account, chanName, watts, timestamp, True))
-                                index += 1
+                                if detailedEnabled:
+                                    usage, usage_start_time = account['vue'].get_chart_usage(chan, detailedStartTime, stopTime, scale=Scale.SECOND.value, unit=Unit.KWH.value)
+                                    index = 0
+                                    for kwhUsage in usage:
+                                        timestamp = detailedStartTime + datetime.timedelta(seconds=index)
+                                        watts = float(secondsInAMinute * minutesInAnHour * wattsInAKw) * kwhUsage
+                                        usageDataPoints.append(createDataPoint(account, chanName, watts, timestamp, True))
+                                        index += 1
 
                     info('Submitting datapoints to database; account="{}"; points={}'.format(account['name'], len(usageDataPoints)))
                     if influxVersion == 2:
