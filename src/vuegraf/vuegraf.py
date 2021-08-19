@@ -114,8 +114,9 @@ def extractDataPoints(device, usageDataPoints):
     for chanNum, chan in device.channels.items():
         if not chanNum in excludedChannelNumbers:
             
-            for gid, nestedDevice in chan.nested_devices:
-                extractDataPoints(nestedDevice, usageDataPoints)
+            if chan.nested_devices:
+                for gid, nestedDevice in chan.nested_devices.items():
+                    extractDataPoints(nestedDevice, usageDataPoints)
 
             kwhUsage = chan.usage
             if kwhUsage is not None:
