@@ -71,15 +71,19 @@ def lookupChannelName(account, chan):
 
     deviceName = lookupDeviceName(account, chan.device_gid)
     name = "{}-{}".format(deviceName, chan.channel_num)
-    if 'devices' in account:
-        for device in account['devices']:
-            if 'name' in device and device['name'] == deviceName:
-                try:
-                    num = int(chan.channel_num)
+
+    try:
+        num = int(chan.channel_num)
+        if 'devices' in account:
+            for device in account['devices']:
+                if 'name' in device and device['name'] == deviceName:
                     if 'channels' in device and len(device['channels']) >= num:
                         name = device['channels'][num - 1]
-                except:
-                    name = deviceName
+                        break
+    except:
+        if chan.channel_num == '1,2,3':
+            name = deviceName
+
     return name
 
 def createDataPoint(account, chanName, watts, timestamp, detailed):
@@ -106,33 +110,30 @@ def createDataPoint(account, chanName, watts, timestamp, detailed):
     return dataPoint
 
 def extractDataPoints(device, usageDataPoints):
-    excludedChannelNumbers = ['Balance', 'TotalUsage']
     minutesInAnHour = 60
     secondsInAMinute = 60
     wattsInAKw = 1000
 
     for chanNum, chan in device.channels.items():
-        if not chanNum in excludedChannelNumbers:
-            
-            if chan.nested_devices:
-                for gid, nestedDevice in chan.nested_devices.items():
-                    extractDataPoints(nestedDevice, usageDataPoints)
+        if chan.nested_devices:
+            for gid, nestedDevice in chan.nested_devices.items():
+                extractDataPoints(nestedDevice, usageDataPoints)
 
-            kwhUsage = chan.usage
-            if kwhUsage is not None:
-                chanName = lookupChannelName(account, chan)
-                watts = float(minutesInAnHour * wattsInAKw) * kwhUsage
-                timestamp = stopTime
-                usageDataPoints.append(createDataPoint(account, chanName, watts, timestamp, False))
+        kwhUsage = chan.usage
+        if kwhUsage is not None:
+            chanName = lookupChannelName(account, chan)
+            watts = float(minutesInAnHour * wattsInAKw) * kwhUsage
+            timestamp = stopTime
+            usageDataPoints.append(createDataPoint(account, chanName, watts, timestamp, False))
 
-            if detailedEnabled:
-                usage, usage_start_time = account['vue'].get_chart_usage(chan, detailedStartTime, stopTime, scale=Scale.SECOND.value, unit=Unit.KWH.value)
-                index = 0
-                for kwhUsage in usage:
-                    timestamp = detailedStartTime + datetime.timedelta(seconds=index)
-                    watts = float(secondsInAMinute * minutesInAnHour * wattsInAKw) * kwhUsage
-                    usageDataPoints.append(createDataPoint(account, chanName, watts, timestamp, True))
-                    index += 1
+        if detailedEnabled:
+            usage, usage_start_time = account['vue'].get_chart_usage(chan, detailedStartTime, stopTime, scale=Scale.SECOND.value, unit=Unit.KWH.value)
+            index = 0
+            for kwhUsage in usage:
+                timestamp = detailedStartTime + datetime.timedelta(seconds=index)
+                watts = float(secondsInAMinute * minutesInAnHour * wattsInAKw) * kwhUsage
+                usageDataPoints.append(createDataPoint(account, chanName, watts, timestamp, True))
+                index += 1
 
 startupTime = datetime.datetime.utcnow()
 try:
