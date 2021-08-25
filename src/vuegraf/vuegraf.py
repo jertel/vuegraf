@@ -110,6 +110,7 @@ def createDataPoint(account, chanName, watts, timestamp, detailed):
     return dataPoint
 
 def extractDataPoints(device, usageDataPoints):
+    excludedDetailChannelNumbers = ['Balance', 'TotalUsage']
     minutesInAnHour = 60
     secondsInAMinute = 60
     wattsInAKw = 1000
@@ -126,14 +127,15 @@ def extractDataPoints(device, usageDataPoints):
             timestamp = stopTime
             usageDataPoints.append(createDataPoint(account, chanName, watts, timestamp, False))
 
-        if detailedEnabled:
+        if detailedEnabled and chanNum not in excludedDetailChannelNumbers:
             usage, usage_start_time = account['vue'].get_chart_usage(chan, detailedStartTime, stopTime, scale=Scale.SECOND.value, unit=Unit.KWH.value)
             index = 0
             for kwhUsage in usage:
-                timestamp = detailedStartTime + datetime.timedelta(seconds=index)
-                watts = float(secondsInAMinute * minutesInAnHour * wattsInAKw) * kwhUsage
-                usageDataPoints.append(createDataPoint(account, chanName, watts, timestamp, True))
-                index += 1
+                if kwhUsage is not None:
+                    timestamp = detailedStartTime + datetime.timedelta(seconds=index)
+                    watts = float(secondsInAMinute * minutesInAnHour * wattsInAKw) * kwhUsage
+                    usageDataPoints.append(createDataPoint(account, chanName, watts, timestamp, True))
+                    index += 1
 
 startupTime = datetime.datetime.utcnow()
 try:
