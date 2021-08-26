@@ -92,6 +92,7 @@ def createDataPoint(account, chanName, watts, timestamp, detailed):
         dataPoint = influxdb_client.Point("energy_usage") \
             .tag("account_name", account['name']) \
             .tag("device_name", chanName) \
+            .tag("detailed", detailed) \
             .field("usage", watts) \
             .time(time=timestamp)
     else:
