@@ -12,9 +12,10 @@ WORKDIR /opt/vuegraf
 # Install pip dependencies with minimal container layer size growth
 COPY src/requirements.txt ./
 RUN set -x && \
-    apk add --no-cache build-base && \
+    apk add --no-cache build-base libffi-dev rust cargo openssl-dev && \
+    pip install --upgrade pip && \
     pip install --no-cache-dir -r requirements.txt && \
-    apk del build-base && \
+    apk del build-base libffi-dev rust cargo openssl-dev && \
     rm -rf /var/cache/apk /opt/vuegraf/requirements.txt
 
 # Copying code in after requirements are built optimizes rebuild

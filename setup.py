@@ -5,7 +5,7 @@ from setuptools import setup
 base_dir = os.path.dirname(__file__)
 setup(
     name='vuegraf',
-    version='1.3.3',
+    version='1.3.4',
     author='Jason Ertel',
     url='https://github.com/jertel/vuegraf',
     description='Populate metrics from your Emporia Vue energy monitoring devices into an InfluxDB',
@@ -23,6 +23,6 @@ setup(
     install_requires=[
         'influxdb>=5.2.3',
         'influxdb_client>=1.15.0',
-        'pyemvue>=0.14.0'
+        'pyemvue>=0.15.0'
     ]
 )
