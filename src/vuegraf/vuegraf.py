@@ -156,6 +156,11 @@ try:
     bucket = ''
     write_api = None
     query_api = None
+    sslVerify = True
+
+    if 'ssl_verify' in config['influxDb']:
+        sslVerify = config['influxDb']['ssl_verify']
+
     if influxVersion == 2:
         info('Using InfluxDB version 2')
         bucket = config['influxDb']['bucket']
@@ -165,7 +170,8 @@ try:
         influx2 = influxdb_client.InfluxDBClient(
            url=url,
            token=token,
-           org=org
+           org=org,
+           verify_ssl=sslVerify
         )
         write_api = influx2.write_api(write_options=influxdb_client.client.write_api.SYNCHRONOUS)
         query_api = influx2.query_api()
@@ -178,11 +184,16 @@ try:
             delete_api.delete(start, stop, '_measurement="energy_usage"', bucket=bucket, org=org)    
     else:
         info('Using InfluxDB version 1')
+
+        sslEnable = False
+        if 'ssl_enable' in config['influxDb']:
+            sslEnable = config['influxDb']['ssl_enable']
+
         # Only authenticate to ingress if 'user' entry was provided in config
         if 'user' in config['influxDb']:
-            influx = influxdb.InfluxDBClient(host=config['influxDb']['host'], port=config['influxDb']['port'], username=config['influxDb']['user'], password=config['influxDb']['pass'], database=config['influxDb']['database'])
+            influx = influxdb.InfluxDBClient(host=config['influxDb']['host'], port=config['influxDb']['port'], username=config['influxDb']['user'], password=config['influxDb']['pass'], database=config['influxDb']['database'], ssl=sslEnable, verify_ssl=sslVerify)
         else:
-            influx = influxdb.InfluxDBClient(host=config['influxDb']['host'], port=config['influxDb']['port'], database=config['influxDb']['database'])
+            influx = influxdb.InfluxDBClient(host=config['influxDb']['host'], port=config['influxDb']['port'], database=config['influxDb']['database'], ssl=sslEnable, verify_ssl=sslVerify)
 
         influx.create_database(config['influxDb']['database'])
 
