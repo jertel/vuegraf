@@ -195,7 +195,12 @@ try:
         else:
             influx = influxdb.InfluxDBClient(host=config['influxDb']['host'], port=config['influxDb']['port'], database=config['influxDb']['database'], ssl=sslEnable, verify_ssl=sslVerify)
 
-        influx.create_database(config['influxDb']['database'])
+        skipCreateDb = False
+        if 'skip_create_db' in config['influxDb']:
+            skipCreateDb = config['influxDb']['skip_create_db']
+
+        if !skipCreateDb:
+            influx.create_database(config['influxDb']['database'])
 
         if config['influxDb']['reset']:
             info('Resetting database')
