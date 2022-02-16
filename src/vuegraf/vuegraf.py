@@ -138,6 +138,29 @@ def extractDataPoints(device, usageDataPoints):
                     usageDataPoints.append(createDataPoint(account, chanName, watts, timestamp, True))
                     index += 1
 
+def extractHistoricalDataPoints(device, startTime, stopTime, usageDataPoints):
+    excludedDetailChannelNumbers = ['Balance', 'TotalUsage']
+    minutesInAnHour = 60
+    wattsInAKw = 1000
+
+    for chanNum, chan in device.channels.items():
+        if chanNum in excludedDetailChannelNumbers:
+            continue
+
+        if chan.nested_devices:
+            for gid, nestedDevice in chan.nested_devices.items():
+                extractHistoricalDataPoints(nestedDevice, startTime, stopTime, usageDataPoints)
+
+        chanName = lookupChannelName(account, chan)
+        usage, usage_start_time = account['vue'].get_chart_usage(chan, startTime, stopTime, scale=Scale.MINUTE.value, unit=Unit.KWH.value)
+        index = 0
+        for kwhUsage in usage:
+            if kwhUsage is not None:
+                timestamp = startTime + datetime.timedelta(minutes=index)
+                watts = float(minutesInAnHour * wattsInAKw) * kwhUsage
+                usageDataPoints.append(createDataPoint(account, chanName, watts, timestamp, True))
+                index += 1
+
 startupTime = datetime.datetime.utcnow()
 try:
     if len(sys.argv) != 2:
@@ -201,6 +224,9 @@ try:
             info('Resetting database')
             influx.delete_series(measurement='energy_usage')
 
+    historyDays = min(config['influxDb']['historyDays'], 7)
+    history = historyDays > 0
+
     running = True
 
     signal.signal(signal.SIGINT, handleExit)
@@ -233,6 +259,15 @@ try:
                     for gid, device in usages.items():
                         extractDataPoints(device, usageDataPoints)
 
+                    if history:
+                        info('Loading historical data from past {} days'.format(historyDays))
+                        for day in range(historyDays):
+                            startTime = stopTime - datetime.timedelta(seconds=3600*24*(day+1))
+                            endTime = stopTime - datetime.timedelta(seconds=3600*24*day)
+                            for gid, device in usages.items():
+                                extractHistoricalDataPoints(device, startTime, endTime, usageDataPoints)
+                        history = False
+
                     info('Submitting datapoints to database; account="{}"; points={}'.format(account['name'], len(usageDataPoints)))
                     if influxVersion == 2:
                         write_api.write(bucket=bucket, record=usageDataPoints)
@@ -252,4 +287,3 @@ try:
 except:
     error('Fatal error: {}'.format(sys.exc_info())) 
     traceback.print_exc()
-

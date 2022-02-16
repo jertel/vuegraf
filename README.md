@@ -52,7 +52,8 @@ InfluxDB v1:
         "user": "root",
         "pass": "root",
         "database": "vue",
-        "reset": false
+        "reset": false,
+        "historyDays": 7
     },
     "accounts": [
         {
@@ -74,7 +75,8 @@ InfluxDB v2:
         "org": "vuegraf",
         "bucket": "vuegraf",
         "token": "veugraf-secret-token",
-        "reset": false
+        "reset": false,
+        "historyDays": 7
     },
     "accounts": [
         {
@@ -85,6 +87,9 @@ InfluxDB v2:
     ]
 }
 ```
+
+# Ingesting Historical Data
+One-minute data from the past `historyDays` days will be ingested into InfluxDB the first time that Vuegraf is run. Emporia currently retains this data for 7 days, and therefore `historyDays` must be less than or equal to `7`. If `historyDays` is set to `0`, no historical data will be ingested into InfluxDB.
 
 ## Advanced Configuration
 To provide more user-friendly names of each Vue device and branch circuit, the following device configuration can be added to the configuration file, within the account block. List each device and circuit in the order that you added them to the Vue mobile app. The channel names do not need to match the names specified in the Vue mobile app but the device names must match. The below example shows two 8-channel Vue devices for a home with two breaker panels.
