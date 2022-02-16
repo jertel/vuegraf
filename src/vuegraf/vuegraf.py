@@ -260,8 +260,13 @@ try:
                             endTime = stopTime - datetime.timedelta(seconds=3600*24*day)
                             for gid, device in usages.items():
                                 extractDataPoints(device, usageDataPoints, startTime, endTime)
+                            if not running:
+                                break
                             pauseEvent.wait(30)
                         history = False
+
+                    if not running:
+                        break
 
                     info('Submitting datapoints to database; account="{}"; points={}'.format(account['name'], len(usageDataPoints)))
                     if influxVersion == 2:
