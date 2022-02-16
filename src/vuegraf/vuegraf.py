@@ -136,22 +136,24 @@ def extractDataPoints(device, usageDataPoints, startTime=None, stopTime=None):
             usage, usage_start_time = account['vue'].get_chart_usage(chan, detailedStartTime, stopTime, scale=Scale.SECOND.value, unit=Unit.KWH.value)
             index = 0
             for kwhUsage in usage:
-                if kwhUsage is not None:
-                    timestamp = detailedStartTime + datetime.timedelta(seconds=index)
-                    watts = float(secondsInAMinute * minutesInAnHour * wattsInAKw) * kwhUsage
-                    usageDataPoints.append(createDataPoint(account, chanName, watts, timestamp, True))
-                    index += 1
+                if kwhUsage is None:
+                    continue
+                timestamp = detailedStartTime + datetime.timedelta(seconds=index)
+                watts = float(secondsInAMinute * minutesInAnHour * wattsInAKw) * kwhUsage
+                usageDataPoints.append(createDataPoint(account, chanName, watts, timestamp, True))
+                index += 1
         
         # fetches historical minute data
         if startTime is not None and endTime is not None:
             usage, usage_start_time = account['vue'].get_chart_usage(chan, startTime, stopTime, scale=Scale.MINUTE.value, unit=Unit.KWH.value)
             index = 0
             for kwhUsage in usage:
-                if kwhUsage is not None:
-                    timestamp = startTime + datetime.timedelta(minutes=index)
-                    watts = float(minutesInAnHour * wattsInAKw) * kwhUsage
-                    usageDataPoints.append(createDataPoint(account, chanName, watts, timestamp, False))
-                    index += 1
+                if kwhUsage is None:
+                    continue
+                timestamp = startTime + datetime.timedelta(minutes=index)
+                watts = float(minutesInAnHour * wattsInAKw) * kwhUsage
+                usageDataPoints.append(createDataPoint(account, chanName, watts, timestamp, False))
+                index += 1
 
 startupTime = datetime.datetime.utcnow()
 try:
