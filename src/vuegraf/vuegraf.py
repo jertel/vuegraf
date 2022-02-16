@@ -110,7 +110,7 @@ def createDataPoint(account, chanName, watts, timestamp, detailed):
         }
     return dataPoint
 
-def extractDataPoints(device, usageDataPoints):
+def extractDataPoints(device, usageDataPoints, startTime=None, stopTime=None):
     excludedDetailChannelNumbers = ['Balance', 'TotalUsage']
     minutesInAnHour = 60
     secondsInAMinute = 60
@@ -119,16 +119,20 @@ def extractDataPoints(device, usageDataPoints):
     for chanNum, chan in device.channels.items():
         if chan.nested_devices:
             for gid, nestedDevice in chan.nested_devices.items():
-                extractDataPoints(nestedDevice, usageDataPoints)
+                extractDataPoints(nestedDevice, usageDataPoints, startTime, stopTime)
+
+        chanName = lookupChannelName(account, chan)
 
         kwhUsage = chan.usage
         if kwhUsage is not None:
-            chanName = lookupChannelName(account, chan)
             watts = float(minutesInAnHour * wattsInAKw) * kwhUsage
             timestamp = stopTime
             usageDataPoints.append(createDataPoint(account, chanName, watts, timestamp, False))
 
-        if detailedEnabled and chanNum not in excludedDetailChannelNumbers:
+        if chanNum in excludedDetailChannelNumbers:
+            continue
+
+        if detailedEnabled:
             usage, usage_start_time = account['vue'].get_chart_usage(chan, detailedStartTime, stopTime, scale=Scale.SECOND.value, unit=Unit.KWH.value)
             index = 0
             for kwhUsage in usage:
@@ -137,29 +141,17 @@ def extractDataPoints(device, usageDataPoints):
                     watts = float(secondsInAMinute * minutesInAnHour * wattsInAKw) * kwhUsage
                     usageDataPoints.append(createDataPoint(account, chanName, watts, timestamp, True))
                     index += 1
-
-def extractHistoricalDataPoints(device, startTime, stopTime, usageDataPoints):
-    excludedDetailChannelNumbers = ['Balance', 'TotalUsage']
-    minutesInAnHour = 60
-    wattsInAKw = 1000
-
-    for chanNum, chan in device.channels.items():
-        if chanNum in excludedDetailChannelNumbers:
-            continue
-
-        if chan.nested_devices:
-            for gid, nestedDevice in chan.nested_devices.items():
-                extractHistoricalDataPoints(nestedDevice, startTime, stopTime, usageDataPoints)
-
-        chanName = lookupChannelName(account, chan)
-        usage, usage_start_time = account['vue'].get_chart_usage(chan, startTime, stopTime, scale=Scale.MINUTE.value, unit=Unit.KWH.value)
-        index = 0
-        for kwhUsage in usage:
-            if kwhUsage is not None:
-                timestamp = startTime + datetime.timedelta(minutes=index)
-                watts = float(minutesInAnHour * wattsInAKw) * kwhUsage
-                usageDataPoints.append(createDataPoint(account, chanName, watts, timestamp, True))
-                index += 1
+        
+        # fetches historical minute data
+        if startTime is not None and endTime is not None:
+            usage, usage_start_time = account['vue'].get_chart_usage(chan, startTime, stopTime, scale=Scale.MINUTE.value, unit=Unit.KWH.value)
+            index = 0
+            for kwhUsage in usage:
+                if kwhUsage is not None:
+                    timestamp = startTime + datetime.timedelta(minutes=index)
+                    watts = float(minutesInAnHour * wattsInAKw) * kwhUsage
+                    usageDataPoints.append(createDataPoint(account, chanName, watts, timestamp, False))
+                    index += 1
 
 startupTime = datetime.datetime.utcnow()
 try:
@@ -265,7 +257,7 @@ try:
                             startTime = stopTime - datetime.timedelta(seconds=3600*24*(day+1))
                             endTime = stopTime - datetime.timedelta(seconds=3600*24*day)
                             for gid, device in usages.items():
-                                extractHistoricalDataPoints(device, startTime, endTime, usageDataPoints)
+                                extractDataPoints(device, usageDataPoints, startTime, endTime)
                         history = False
 
                     info('Submitting datapoints to database; account="{}"; points={}'.format(account['name'], len(usageDataPoints)))
