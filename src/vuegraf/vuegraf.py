@@ -254,12 +254,13 @@ try:
                         extractDataPoints(device, usageDataPoints)
 
                     if history:
-                        info('Loading historical data from past {} days'.format(historyDays))
                         for day in range(historyDays):
+                            info('Loading historical data: {} day ago'.format(day+1))
                             startTime = stopTime - datetime.timedelta(seconds=3600*24*(day+1))
                             endTime = stopTime - datetime.timedelta(seconds=3600*24*day)
                             for gid, device in usages.items():
                                 extractDataPoints(device, usageDataPoints, startTime, endTime)
+                            pauseEvent.wait(30)
                         history = False
 
                     info('Submitting datapoints to database; account="{}"; points={}'.format(account['name'], len(usageDataPoints)))
