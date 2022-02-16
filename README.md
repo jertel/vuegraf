@@ -88,7 +88,7 @@ InfluxDB v2:
 }
 ```
 
-# Ingesting Historical Data
+## Ingesting Historical Data
 One-minute data from the past `historyDays` days will be ingested into InfluxDB the first time that Vuegraf is run. Emporia currently retains this data for 7 days, and therefore `historyDays` must be less than or equal to `7`. If `historyDays` is set to `0`, no historical data will be ingested into InfluxDB.
 
 ## Advanced Configuration
