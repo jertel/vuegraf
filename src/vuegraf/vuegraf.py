@@ -110,7 +110,7 @@ def createDataPoint(account, chanName, watts, timestamp, detailed):
         }
     return dataPoint
 
-def extractDataPoints(device, usageDataPoints):
+def extractDataPoints(device, usageDataPoints, historyStartTime=None, historyEndTime=None):
     excludedDetailChannelNumbers = ['Balance', 'TotalUsage']
     minutesInAnHour = 60
     secondsInAMinute = 60
@@ -119,24 +119,41 @@ def extractDataPoints(device, usageDataPoints):
     for chanNum, chan in device.channels.items():
         if chan.nested_devices:
             for gid, nestedDevice in chan.nested_devices.items():
-                extractDataPoints(nestedDevice, usageDataPoints)
+                extractDataPoints(nestedDevice, usageDataPoints, historyStartTime, historyEndTime)
+
+        chanName = lookupChannelName(account, chan)
 
         kwhUsage = chan.usage
         if kwhUsage is not None:
-            chanName = lookupChannelName(account, chan)
             watts = float(minutesInAnHour * wattsInAKw) * kwhUsage
             timestamp = stopTime
             usageDataPoints.append(createDataPoint(account, chanName, watts, timestamp, False))
 
-        if detailedEnabled and chanNum not in excludedDetailChannelNumbers:
+        if chanNum in excludedDetailChannelNumbers:
+            continue
+
+        if detailedEnabled:
             usage, usage_start_time = account['vue'].get_chart_usage(chan, detailedStartTime, stopTime, scale=Scale.SECOND.value, unit=Unit.KWH.value)
             index = 0
             for kwhUsage in usage:
-                if kwhUsage is not None:
-                    timestamp = detailedStartTime + datetime.timedelta(seconds=index)
-                    watts = float(secondsInAMinute * minutesInAnHour * wattsInAKw) * kwhUsage
-                    usageDataPoints.append(createDataPoint(account, chanName, watts, timestamp, True))
-                    index += 1
+                if kwhUsage is None:
+                    continue
+                timestamp = detailedStartTime + datetime.timedelta(seconds=index)
+                watts = float(secondsInAMinute * minutesInAnHour * wattsInAKw) * kwhUsage
+                usageDataPoints.append(createDataPoint(account, chanName, watts, timestamp, True))
+                index += 1
+        
+        # fetches historical minute data
+        if historyStartTime is not None and historyEndTime is not None:
+            usage, usage_start_time = account['vue'].get_chart_usage(chan, historyStartTime, historyEndTime, scale=Scale.MINUTE.value, unit=Unit.KWH.value)
+            index = 0
+            for kwhUsage in usage:
+                if kwhUsage is None:
+                    continue
+                timestamp = historyStartTime + datetime.timedelta(minutes=index)
+                watts = float(minutesInAnHour * wattsInAKw) * kwhUsage
+                usageDataPoints.append(createDataPoint(account, chanName, watts, timestamp, False))
+                index += 1
 
 startupTime = datetime.datetime.utcnow()
 try:
@@ -201,6 +218,9 @@ try:
             info('Resetting database')
             influx.delete_series(measurement='energy_usage')
 
+    historyDays = min(config['influxDb']['historyDays'], 7)
+    history = historyDays > 0
+
     running = True
 
     signal.signal(signal.SIGINT, handleExit)
@@ -233,6 +253,21 @@ try:
                     for gid, device in usages.items():
                         extractDataPoints(device, usageDataPoints)
 
+                    if history:
+                        for day in range(historyDays):
+                            info('Loading historical data: {} day ago'.format(day+1))
+                            historyStartTime = stopTime - datetime.timedelta(seconds=3600*24*(day+1))
+                            historyEndTime = stopTime - datetime.timedelta(seconds=3600*24*day)
+                            for gid, device in usages.items():
+                                extractDataPoints(device, usageDataPoints, historyStartTime, historyEndTime)
+                            if not running:
+                                break
+                            pauseEvent.wait(30)
+                        history = False
+
+                    if not running:
+                        break
+
                     info('Submitting datapoints to database; account="{}"; points={}'.format(account['name'], len(usageDataPoints)))
                     if influxVersion == 2:
                         write_api.write(bucket=bucket, record=usageDataPoints)
@@ -252,4 +287,3 @@ try:
 except:
     error('Fatal error: {}'.format(sys.exc_info())) 
     traceback.print_exc()
-
