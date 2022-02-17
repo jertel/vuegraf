@@ -218,7 +218,7 @@ try:
             info('Resetting database')
             influx.delete_series(measurement='energy_usage')
 
-    historyDays = min(config['influxDb']['historyDays'], 7)
+    historyDays = min(config['influxDb'].get('historyDays', 0), 7)
     history = historyDays > 0
 
     running = True
