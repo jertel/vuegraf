@@ -256,10 +256,10 @@ try:
                     if history:
                         for day in range(historyDays):
                             info('Loading historical data: {} day ago'.format(day+1))
-                            histroyStartTime = stopTime - datetime.timedelta(seconds=3600*24*(day+1))
+                            historyStartTime = stopTime - datetime.timedelta(seconds=3600*24*(day+1))
                             historyEndTime = stopTime - datetime.timedelta(seconds=3600*24*day)
                             for gid, device in usages.items():
-                                extractDataPoints(device, usageDataPoints, histroyStartTime, historyEndTime)
+                                extractDataPoints(device, usageDataPoints, historyStartTime, historyEndTime)
                             if not running:
                                 break
                             pauseEvent.wait(30)
