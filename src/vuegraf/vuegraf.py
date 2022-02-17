@@ -110,7 +110,7 @@ def createDataPoint(account, chanName, watts, timestamp, detailed):
         }
     return dataPoint
 
-def extractDataPoints(device, usageDataPoints, startTime=None, stopTime=None):
+def extractDataPoints(device, usageDataPoints, historyStartTime=None, historyEndTime=None):
     excludedDetailChannelNumbers = ['Balance', 'TotalUsage']
     minutesInAnHour = 60
     secondsInAMinute = 60
@@ -119,7 +119,7 @@ def extractDataPoints(device, usageDataPoints, startTime=None, stopTime=None):
     for chanNum, chan in device.channels.items():
         if chan.nested_devices:
             for gid, nestedDevice in chan.nested_devices.items():
-                extractDataPoints(nestedDevice, usageDataPoints, startTime, stopTime)
+                extractDataPoints(nestedDevice, usageDataPoints, historyStartTime, historyEndTime)
 
         chanName = lookupChannelName(account, chan)
 
@@ -144,13 +144,13 @@ def extractDataPoints(device, usageDataPoints, startTime=None, stopTime=None):
                 index += 1
         
         # fetches historical minute data
-        if startTime is not None and endTime is not None:
-            usage, usage_start_time = account['vue'].get_chart_usage(chan, startTime, stopTime, scale=Scale.MINUTE.value, unit=Unit.KWH.value)
+        if historyStartTime is not None and historyEndTime is not None:
+            usage, usage_start_time = account['vue'].get_chart_usage(chan, historyStartTime, historyEndTime, scale=Scale.MINUTE.value, unit=Unit.KWH.value)
             index = 0
             for kwhUsage in usage:
                 if kwhUsage is None:
                     continue
-                timestamp = startTime + datetime.timedelta(minutes=index)
+                timestamp = historyStartTime + datetime.timedelta(minutes=index)
                 watts = float(minutesInAnHour * wattsInAKw) * kwhUsage
                 usageDataPoints.append(createDataPoint(account, chanName, watts, timestamp, False))
                 index += 1
@@ -256,10 +256,10 @@ try:
                     if history:
                         for day in range(historyDays):
                             info('Loading historical data: {} day ago'.format(day+1))
-                            startTime = stopTime - datetime.timedelta(seconds=3600*24*(day+1))
-                            endTime = stopTime - datetime.timedelta(seconds=3600*24*day)
+                            histroyStartTime = stopTime - datetime.timedelta(seconds=3600*24*(day+1))
+                            historyEndTime = stopTime - datetime.timedelta(seconds=3600*24*day)
                             for gid, device in usages.items():
-                                extractDataPoints(device, usageDataPoints, startTime, endTime)
+                                extractDataPoints(device, usageDataPoints, histroyStartTime, historyEndTime)
                             if not running:
                                 break
                             pauseEvent.wait(30)
