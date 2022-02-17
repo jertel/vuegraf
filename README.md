@@ -52,8 +52,7 @@ InfluxDB v1:
         "user": "root",
         "pass": "root",
         "database": "vue",
-        "reset": false,
-        "historyDays": 7
+        "reset": false
     },
     "accounts": [
         {
@@ -75,8 +74,7 @@ InfluxDB v2:
         "org": "vuegraf",
         "bucket": "vuegraf",
         "token": "veugraf-secret-token",
-        "reset": false,
-        "historyDays": 0
+        "reset": false
     },
     "accounts": [
         {
@@ -89,9 +87,9 @@ InfluxDB v2:
 ```
 
 ## Ingesting Historical Data
-One-minute data from the past `historyDays` days will be ingested into InfluxDB the first time that Vuegraf is run. Emporia currently retains this data for 7 days, and therefore `historyDays` must be less than or equal to `7`. If `historyDays` is set to `0`, no historical data will be ingested into InfluxDB.
+If desired, it is possible to have Vuegraf import historical data. To do so, specify a new temporary parameter called `historyDays` inside the `influxDb` section, with an integer value greater than zero. Once restarted, One-minute data from the past `historyDays` days will be ingested into InfluxDB. Emporia currently retains this data for 7 days, and therefore `historyDays` must be less than or equal to `7`. If `historyDays` is set to `0`, no historical data will be ingested into InfluxDB.
 
-IMPORTANT - If you restart Vuegraf, with historyDays still set to a non-zero value, then it will _again_ import history data. This will likely cause confusion with your data since you will now have duplicate/overlapping data. For best results, only enable historyDays > 0 for a single run, and then immediately set it back to 0 to avoid this duplicated import data scenario.
+IMPORTANT - If you restart Vuegraf with historyDays still set to a non-zero value then it will _again_ import history data. This will likely cause confusion with your data since you will now have duplicate/overlapping data. For best results, only enable historyDays > 0 for a single run, and then immediately set it back to 0 to avoid this duplicated import data scenario.
 
 ## Advanced Configuration
 To provide more user-friendly names of each Vue device and branch circuit, the following device configuration can be added to the configuration file, within the account block. List each device and circuit in the order that you added them to the Vue mobile app. The channel names do not need to match the names specified in the Vue mobile app but the device names must match. The below example shows two 8-channel Vue devices for a home with two breaker panels.
