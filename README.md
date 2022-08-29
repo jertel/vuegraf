@@ -87,6 +87,9 @@ InfluxDB v2:
 ```
 
 ## Ingesting Historical Data
+
+** NOTE ** There are reports on the discussion forum that this feature may no longer be working correctly.
+
 If desired, it is possible to have Vuegraf import historical data. To do so, specify a new temporary parameter called `historyDays` inside the `influxDb` section, with an integer value greater than zero. Once restarted, One-minute data from the past `historyDays` days will be ingested into InfluxDB. Emporia currently retains this data for 7 days, and therefore `historyDays` must be less than or equal to `7`. If `historyDays` is set to `0`, no historical data will be ingested into InfluxDB.
 
 IMPORTANT - If you restart Vuegraf with historyDays still set to a non-zero value then it will _again_ import history data. This will likely cause confusion with your data since you will now have duplicate/overlapping data. For best results, only enable historyDays > 0 for a single run, and then immediately set it back to 0 to avoid this duplicated import data scenario.
@@ -191,7 +194,7 @@ docker run --name vuegraf -d -v /home/myusername/vuegraf:/opt/vuegraf/conf jerte
 If you are new to Docker, the next two commands will help you get the InfluxDB (version 1) and Grafana containers up and running, assuming you have Docker installed and running already. In the above config example, your influxdb host name will be your host's real IP (*not* localhost or 127.0.0.1).
 
 ```sh
-docker run -d --name influxdb:1.8-alpine -v /home/myusername/vuegraf:/var/lib/influxdb -p 8086:8086 influxdb
+docker run -d --name influxdb -v /home/myusername/vuegraf:/var/lib/influxdb -p 8086:8086 influxdb:1.8-alpine
 docker run -d --name grafana -v /home/myusername/vuegraf:/var/lib/grafana -p 3000:3000 grafana/grafana
 ```
 
