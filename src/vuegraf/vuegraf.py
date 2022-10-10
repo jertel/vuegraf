@@ -256,13 +256,20 @@ try:
                     if history:
                         for day in range(historyDays):
                             info('Loading historical data: {} day ago'.format(day+1))
+                            #Extract second 12h of day
+                            historyStartTime = stopTime - datetime.timedelta(seconds=3600*24*(day+1)-43200)
+                            historyEndTime = stopTime - datetime.timedelta(seconds=(3600*24*(day)))
+                            for gid, device in usages.items():
+                                extractDataPoints(device, usageDataPoints, historyStartTime, historyEndTime)
+                            pauseEvent.wait(5)
+                            #Extract first 12h of day
                             historyStartTime = stopTime - datetime.timedelta(seconds=3600*24*(day+1))
-                            historyEndTime = stopTime - datetime.timedelta(seconds=3600*24*day)
+                            historyEndTime = stopTime - datetime.timedelta(seconds=(3600*24*(day+1))-43200)
                             for gid, device in usages.items():
                                 extractDataPoints(device, usageDataPoints, historyStartTime, historyEndTime)
                             if not running:
                                 break
-                            pauseEvent.wait(30)
+                            pauseEvent.wait(5)
                         history = False
 
                     if not running:
