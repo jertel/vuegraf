@@ -218,6 +218,14 @@ If you only have one Vue device you should remove the Left/Right panel reference
 
 Refer to the screenshots below for examples on how to define the InfluxDB data source, graphs, and alerts.
 
+NOTE: The energy_usage measurement includes two types of data:
+
+- `detailed = true` represents backfilled per-second data that is queried from Emporia once every hour.
+- `detailed = false` represents the per-minute average data that is collected every minute.
+
+When building graphs that show a sum of the energy usage, be sure to only include either detailed=true or detailed=false, otherwise your summed values will be higher than expected.
+
+
 ![Grafana Data Source Screenshot](https://github.com/jertel/vuegraf/blob/master/screenshots/datasource.png?raw=true "Data Source Example")
 
 A graph query is shown below, showing a simple filter to pull data for a specific circuit.
