@@ -128,7 +128,7 @@ To provide more user-friendly names of each Vue device and branch circuit, the f
 
 ## Vue Utility Connect Energy Monitor
 
-As reported in #104, the Utility Connect device is supported without any custom changes.
+As reported in [discussion #104](https://github.com/jertel/vuegraf/discussions/104), the Utility Connect device is supported without any custom changes.
 
 ## Smart Plugs
 
