@@ -126,6 +126,10 @@ To provide more user-friendly names of each Vue device and branch circuit, the f
             ]
 ```
 
+## Vue Utility Connect Energy Monitor
+
+As reported in #104, the Utility Connect device is supported without any custom changes.
+
 ## Smart Plugs
 
 To include an Emporia smart plug in the configuration, add each plug as it's own device, without channels. Again, the name of the Smart Plug device must exactly match the name you gave the device in the Vue app during initial registration.
