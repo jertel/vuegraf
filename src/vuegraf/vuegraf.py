@@ -40,6 +40,16 @@ def getConfigValue(key, defaultValue):
         return config[key]
     return defaultValue
 
+# Reset config file if history or DB reset set
+# Allows sequential runs without lossing data 
+def setconfig(configname, configkey, configvalue) :
+    with open(configFilename, 'r') as newconfigFile:
+        newconfig = json.load(newconfigFile)
+    newconfig[configname][configkey] = configvalue
+    with open(configFilename, 'w') as configout:
+        json.dump(newconfig, configout, indent=4)
+    return()
+
 def populateDevices(account):
     deviceIdMap = {}
     account['deviceIdMap'] = deviceIdMap
@@ -199,6 +209,7 @@ try:
             start = "1970-01-01T00:00:00Z"
             stop = startupTime.isoformat(timespec='seconds')
             delete_api.delete(start, stop, '_measurement="energy_usage"', bucket=bucket, org=org)    
+            setconfig('influxDb','reset','false') 
     else:
         info('Using InfluxDB version 1')
 
@@ -217,6 +228,7 @@ try:
         if config['influxDb']['reset']:
             info('Resetting database')
             influx.delete_series(measurement='energy_usage')
+            setconfig('influxDb','reset','false') 
 
     historyDays = min(config['influxDb'].get('historyDays', 0), 7)
     history = historyDays > 0
@@ -271,6 +283,7 @@ try:
                                 break
                             pauseEvent.wait(5)
                         history = False
+                        setconfig('influxDb','historyDays', 0)
 
                     if not running:
                         break
