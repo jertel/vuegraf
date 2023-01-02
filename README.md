@@ -131,10 +131,10 @@ To provide more user-friendly names of each Vue device and branch circuit, the f
 
 ### Per-second Data Details
 
-By default, Vuegraf will poll every minute to collect the energy usage value over the past 60 seconds. This results in a single value being capture per minute, or 60 values per hour. If you also would like to see per-second values, you can enable the detailed collection, which is polled once per hour, and backfilled over the previous 3600 seconds. This API call is very expensive on the Emporia servers, so it should not be polled more frequently than once per hour. To enable this detailed data, add (or update) the top-level `detailedIntervalSecs` configuration value with a value of `3600`.
+By default, Vuegraf will poll every minute to collect the energy usage value over the past 60 seconds. This results in a single value being capture per minute per channel, or 60 values per hour per channel. If you also would like to see per-second values, you can enable the detailed collection, which is polled once per hour, and backfilled over the previous 3600 seconds. This API call is very expensive on the Emporia servers, so it should not be polled more frequently than once per hour. To enable this detailed data, add (or update) the top-level `detailedDataEnabled` configuration value with a value of `true`.
 
 ```
-detailedIntervalSecs: 3600
+detailedDataEnabled: true
 ```
 
 ## Vue Utility Connect Energy Monitor

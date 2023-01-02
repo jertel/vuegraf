@@ -132,7 +132,7 @@ def extractDataPoints(device, usageDataPoints, historyStartTime=None, historyEnd
         if chanNum in excludedDetailChannelNumbers:
             continue
 
-        if detailedEnabled:
+        if collectDetails:
             usage, usage_start_time = account['vue'].get_chart_usage(chan, detailedStartTime, stopTime, scale=Scale.SECOND.value, unit=Unit.KWH.value)
             index = 0
             for kwhUsage in usage:
@@ -229,14 +229,16 @@ try:
     pauseEvent = Event()
 
     intervalSecs=getConfigValue("updateIntervalSecs", 60)
-    detailedIntervalSecs=getConfigValue("detailedIntervalSecs", 0)
+    detailedIntervalSecs=getConfigValue("detailedIntervalSecs", 3600)
+    detailedDataEnabled=getConfigValue("detailedDataEnabled", False);
+    info('Settings -> updateIntervalSecs: {}, detailedEnabled: {}, detailedIntervalSecs: {}'.format(intervalSecs, detailedIntervalSecs, detailedDataEnabled))
     lagSecs=getConfigValue("lagSecs", 5)
     detailedStartTime = startupTime
 
     while running:
         now = datetime.datetime.utcnow()
         stopTime = now - datetime.timedelta(seconds=lagSecs)
-        detailedEnabled = detailedIntervalSecs > 0 and (stopTime - detailedStartTime).total_seconds() >= detailedIntervalSecs
+        collectDetails = detailedDataEnabled and detailedIntervalSecs > 0 and (stopTime - detailedStartTime).total_seconds() >= detailedIntervalSecs
 
         for account in config["accounts"]:
             if 'vue' not in account:
@@ -285,7 +287,7 @@ try:
                 error('Failed to record new usage data: {}'.format(sys.exc_info())) 
                 traceback.print_exc()
 
-        if detailedEnabled:
+        if collectDetails:
             detailedStartTime = stopTime + datetime.timedelta(seconds=1)
 
         pauseEvent.wait(intervalSecs)
