@@ -9,6 +9,8 @@
         "ssl_enable": false,
         "ssl_verify": true
     },
+    "detailedIntervalSecs": 0,
+    "updateIntervalSecs": 60,
     "accounts": [
         {
             "name": "Primary Residence",

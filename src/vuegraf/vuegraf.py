@@ -229,14 +229,14 @@ try:
     pauseEvent = Event()
 
     intervalSecs=getConfigValue("updateIntervalSecs", 60)
-    detailedIntervalSecs=getConfigValue("detailedIntervalSecs", 3600)
+    detailedIntervalSecs=getConfigValue("detailedIntervalSecs", 0)
     lagSecs=getConfigValue("lagSecs", 5)
     detailedStartTime = startupTime
 
     while running:
         now = datetime.datetime.utcnow()
         stopTime = now - datetime.timedelta(seconds=lagSecs)
-        detailedEnabled = (stopTime - detailedStartTime).total_seconds() >= detailedIntervalSecs
+        detailedEnabled = detailedIntervalSecs > 0 and (stopTime - detailedStartTime).total_seconds() >= detailedIntervalSecs
 
         for account in config["accounts"]:
             if 'vue' not in account:

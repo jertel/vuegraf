@@ -86,13 +86,16 @@ InfluxDB v2:
 }
 ```
 
-## Ingesting Historical Data
+## Advanced Configuration
+
+### Ingesting Historical Data
 
 If desired, it is possible to have Vuegraf import historical data. To do so, specify a new temporary parameter called `historyDays` inside the `influxDb` section, with an integer value greater than zero. Once restarted, One-minute data from the past `historyDays` days will be ingested into InfluxDB. Emporia currently retains this data for 7 days, and therefore `historyDays` must be less than or equal to `7`. If `historyDays` is set to `0`, no historical data will be ingested into InfluxDB.
 
 IMPORTANT - If you restart Vuegraf with historyDays still set to a non-zero value then it will _again_ import history data. This will likely cause confusion with your data since you will now have duplicate/overlapping data. For best results, only enable historyDays > 0 for a single run, and then immediately set it back to 0 to avoid this duplicated import data scenario.
 
-## Advanced Configuration
+### Channel Names
+
 To provide more user-friendly names of each Vue device and branch circuit, the following device configuration can be added to the configuration file, within the account block. List each device and circuit in the order that you added them to the Vue mobile app. The channel names do not need to match the names specified in the Vue mobile app but the device names must match. The below example shows two 8-channel Vue devices for a home with two breaker panels.
 
 ```json
@@ -124,6 +127,14 @@ To provide more user-friendly names of each Vue device and branch circuit, the f
                     ]
                 }
             ]
+```
+
+### Per-second Data Details
+
+By default, Vuegraf will poll every minute to collect the energy usage value over the past 60 seconds. This results in a single value being capture per minute, or 60 values per hour. If you also would like to see per-second values, you can enable the detailed collection, which is polled once per hour, and backfilled over the previous 3600 seconds. This API call is very expensive on the Emporia servers, so it should not be polled more frequently than once per hour. To enable this detailed data, add (or update) the top-level `detailedIntervalSecs` configuration value with a value of `3600`.
+
+```
+detailedIntervalSecs: 3600
 ```
 
 ## Vue Utility Connect Energy Monitor
@@ -220,7 +231,7 @@ Refer to the screenshots below for examples on how to define the InfluxDB data s
 
 NOTE: The energy_usage measurement includes two types of data:
 
-- `detailed = true` represents backfilled per-second data that is queried from Emporia once every hour.
+- `detailed = true` represents backfilled per-second data that is optionally queried from Emporia once every hour.
 - `detailed = false` represents the per-minute average data that is collected every minute.
 
 When building graphs that show a sum of the energy usage, be sure to only include either detailed=true or detailed=false, otherwise your summed values will be higher than expected.
