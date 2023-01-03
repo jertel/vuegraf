@@ -231,7 +231,7 @@ try:
     intervalSecs=getConfigValue("updateIntervalSecs", 60)
     detailedIntervalSecs=getConfigValue("detailedIntervalSecs", 3600)
     detailedDataEnabled=getConfigValue("detailedDataEnabled", False);
-    info('Settings -> updateIntervalSecs: {}, detailedEnabled: {}, detailedIntervalSecs: {}'.format(intervalSecs, detailedIntervalSecs, detailedDataEnabled))
+    info('Settings -> updateIntervalSecs: {}, detailedEnabled: {}, detailedIntervalSecs: {}'.format(intervalSecs, detailedDataEnabled, detailedIntervalSecs))
     lagSecs=getConfigValue("lagSecs", 5)
     detailedStartTime = startupTime
 
