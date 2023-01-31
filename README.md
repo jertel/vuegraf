@@ -42,7 +42,7 @@ The included template file named `influx_dashboard.json` includes the provided d
 You will need to apply this template file to your running InfluxDB instance. Copy the `influx_dashboard.json` file into your hosts' influxdb2 path. If you followed the Setup instructions above, the path would be `/opt/data/influxdb2`. The below command can be used to perform this step. This command assumes you are running Influx in a container named `influxdb`.
 
 ```
-docker exec influxdb influx -f /var/lib/influxdb2/influx_dashboard.json --org vuegraf -t <my-influx-token>
+docker exec influxdb influx apply -f /var/lib/influxdb2/influx_dashboard.json --org vuegraf -t <my-influx-token>
 ```
 
 Replace the `<my-influx-token>` with the All Access Token you generated in the Influx _Load Data -> API Tokens_ screen.
