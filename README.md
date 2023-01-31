@@ -21,11 +21,11 @@ This project is not affiliated with _emporia energy_ company.
 If you do not yet have a running InfluxDB 2 instance, you will need to set one up. You can do this very quickly by launching an InfluxDB 2 Docker container as follows:
 
 ```
-mkdir -p /opt/data/influxdb2
-docker run -v /opt/data/influxdb2:/var/lib/influxdb2 -p 8086:8086 -e INFLUXD_SESSION_LENGTH=432000 --name influxdb influxdb
+mkdir -p /home/myuser/influxdb2
+docker run -v /home/myuser/influxdb2:/var/lib/influxdb2 -p 8086:8086 -e INFLUXD_SESSION_LENGTH=432000 --name influxdb influxdb
 ```
 
-Substitute an appropriate host path for the `/opt/data/influxdb2` location above. Once running, access the web UI at `http://localhost:8086`. It will prompt you for a username, password, organization name, and bucket name. The rest of this document assumes you have entered the word `vuegraf` for all of these inputs.
+Substitute an appropriate host path for the `/home/myuser/influxdb2` location above. Once running, access the web UI at `http://localhost:8086`. It will prompt you for a username, password, organization name, and bucket name. The rest of this document assumes you have entered the word `vuegraf` for all of these inputs.
 
 Note that the default session timeout for Influx is only 60 minutes, so this command increases the login session to 300 days.
 
@@ -39,7 +39,7 @@ The included template file named `influx_dashboard.json` includes the provided d
 
 ![Influx Dashboard Screenshot](https://github.com/jertel/vuegraf/blob/master/screenshots/influx_dashboard.png?raw=true "Influx Dashboard")
 
-You will need to apply this template file to your running InfluxDB instance. Copy the `influx_dashboard.json` file into your hosts' influxdb2 path. If you followed the Setup instructions above, the path would be `/opt/data/influxdb2`. The below command can be used to perform this step. This command assumes you are running Influx in a container named `influxdb`.
+You will need to apply this template file to your running InfluxDB instance. Copy the `influx_dashboard.json` file into your hosts' influxdb2 path. If you followed the Setup instructions above, the path would be `/home/myuser/influxdb2`. The below command can be used to perform this step. This command assumes you are running Influx in a container named `influxdb`.
 
 ```
 docker exec influxdb influx apply -f /var/lib/influxdb2/influx_dashboard.json --org vuegraf -t <my-influx-token>
@@ -158,13 +158,14 @@ python3 src/vuegraf/vuegraf.py vuegraf.json
 A Docker container is provided at [hub.docker.com](https://hub.docker.com/r/jertel/vuegraf). Refer to the command below to launch Vuegraf as a container. This assumes you have create a folder called vuegraf and placed the vuegraf.json file inside of it.
 
 ```sh
-docker run --name vuegraf -d -v /home/myusername/vuegraf:/opt/vuegraf/conf jertel/vuegraf
+docker run --name vuegraf -d -v /home/myuser/vuegraf:/opt/vuegraf/conf jertel/vuegraf
 ```
 
 If you are new to Docker, the next following command will help you get the InfluxDB container up and running, assuming you have Docker installed and running already. In the above config example, your influxdb URL will include your host's real IP (*not* localhost or 127.0.0.1).
 
 ```sh
-docker run -d --name influxdb -v /home/myusername/vuegraf:/var/lib/influxdb2 -p 8086:8086 influxdb
+mkdir -p /home/myuser/influxdb2
+docker run -d --name influxdb -v /home/myuser/influxdb2:/var/lib/influxdb2 -p 8086:8086 influxdb
 ```
 
 ## Alerts
@@ -245,8 +246,8 @@ Early Vuegraf users still on InfluxDB v1 can upgrade to InfluxDB 2. To do so, st
 
 ```
 docker run --rm --pull always -p 8086:8086 \
-  -v /opt/data/influxdb:/var/lib/influxdb \
-  -v /opt/data/influxdb2:/var/lib/influxdb2 \
+  -v /home/myuser/influxdb:/var/lib/influxdb \
+  -v /home/myuser/influxdb2:/var/lib/influxdb2 \
   -e DOCKER_INFLUXDB_INIT_MODE=upgrade \
   -e DOCKER_INFLUXDB_INIT_USERNAME=vuegraf \
   -e DOCKER_INFLUXDB_INIT_PASSWORD=vuegraf \
@@ -256,7 +257,7 @@ docker run --rm --pull always -p 8086:8086 \
   influxdb
 ```
 
-The upgrade should complete relatively quickly. For reference, a 7GB database, spanning several months, upgrades in about 15 seconds on SSD storage.
+Adjust the host paths above as necessary, to match the old and new influxdb directories. The upgrade should complete relatively quickly. For reference, a 7GB database, spanning several months, upgrades in about 15 seconds on SSD storage.
 
 Monitor the console output and once the upgrade completes and the Influx server finishes starting, shut it down (CTRL+C) and then restart the Influx DB using the command referenced earlier in this document.
 
