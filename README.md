@@ -2,7 +2,7 @@
 
 The [Emporia Vue](https://emporiaenergy.com "Emporia's Homepage") energy monitoring kit allows homeowners to monitor their electrical usage. It monitors the main feed consumption and up to 8 (or 16 in the newer version) individual branch circuits, and feeds that data back to the Emporia API server.
 
-This project, Vuegraf, fetches those metrics from the Emporia Vue API host and stores the metrics into your own InfluxDB. When paired with Grafana you'll be able to:
+This project, Vuegraf, fetches those metrics from the Emporia Vue API host and stores the metrics into your own InfluxDB. After installation you will be able to:
 * View your energy usage across all circuits on a single graph
 * Create alerts to notify when certain energy usage thresholds are exceeded
 
@@ -10,25 +10,44 @@ This project is not affiliated with _emporia energy_ company.
 
 # Dependencies
 
-## Required
 * [Emporia Vue](https://emporiaenergy.com "Emporia Energy") Account - Username and password for the Emporia Vue system are required.
 * [Python 3](https://python.org "Python") - With Pip.
-* [InfluxDB](https://influxdata.com "InfluxDB") - Host, port, and login credentials are required.
+* [InfluxDB 2](https://influxdata.com "InfluxDB") - Host, port, org, bucket, and token are all required.
 
-## Recommended
-* [Grafana](https://grafana.com "Grafana") - Can be used to read metrics from the InfluxDB.
+# Influx
 
-# Screenshots
+## Setup
 
-The following screenshots are provided to illustrate the possibilities available after using Vuegraf. These were all taken from a functionaing Grafana installation.
+If you do not yet have a running InfluxDB 2 instance, you will need to set one up. You can do this very quickly by launching an InfluxDB 2 Docker container as follows:
 
-A sample Grafana dashboard is shown below:
+```
+mkdir -p /opt/data/influxdb
+docker run -v /opt/data/influxdb2:/var/lib/influxdb2 -p 8086:8086 -e INFLUXD_SESSION_LENGTH=432000 --name influxdb influxdb
+```
 
-![Dashboard Example Screenshot](https://github.com/jertel/vuegraf/blob/master/screenshots/dashboard.png?raw=true "Dashboard Example")
+Substitute an appropriate host path for the `/opt/data/influxdb2` location above. Once running, access the web UI at `http://localhost:8086`. It will prompt you for a username, password, organization name, and bucket name. The rest of this document assumes you have entered the word `vuegraf` for all of these inputs.
 
-A single graph showing multiple overlayed circuits is shown below:
+Note that the default session timeout for Influx is only 60 minutes, so this command increases the login session to 300 days.
 
-![Graph Example Screenshot](https://github.com/jertel/vuegraf/blob/master/screenshots/graph.png?raw=true "Graph Example")
+Once logged in, go to the _Load Data -> API Tokens_ screen and generate a new All Access token with the description of _vuegraf_. Copy the generated token for use in the rest of this document, specifically when referenced as `<my-influx-token>`.
+
+## Dashboard
+
+By default, a new InfluxDB instance will not have any dashboards loaded. You will need to import the included Influx JSON template, or create your own dashboard in order to visualize your energy usage.
+
+The included template file named `influx_dashboard.json` includes the provided dashboard and accompanying variables to reproduce the visualizations shown below. This dashboard assumes your main device name contains the word `Panel`, such as `House Panel`, or `Right Panel`. If it does not, the Flux queries will need to be adjusted manually to look for your device's name.
+
+![Influx Dashboard Screenshot](https://github.com/jertel/vuegraf/blob/master/screenshots/influx_datasource.png?raw=true "Influx Dashboard")
+
+You will need to apply this template file to your running InfluxDB instance. Copy the `influx_dashboard.json` file into your hosts' influxdb2 path. If you followed the Setup instructions above, the path would be `/opt/data/influxdb`. The below command can be used to perform this step. This command assumes you are running Influx in a container named `influxdb`.
+
+```
+docker exec influxdb influx -f /var/lib/influxdb2/influx_dashboard.json --org vuegraf -t <my-influx-token>
+```
+
+Replace the `<my-influx-token>` with the All Access Token you generated in the Influx _Load Data -> API Tokens_ screen.
+
+You're now ready to proceed with the Vuegraf configuration and startup.
 
 # Configuration
 The configuration allows for the definition of multiple Emporia Vue accounts. This will only be useful to users that need to pull metrics from multiple accounts. This is not needed if you have multiple Vue devices in a single account. Vuegraf will find multiple devices on its own within each account.
@@ -42,30 +61,6 @@ A [sample configuration file](https://github.com/jertel/vuegraf/blob/master/vueg
 ## Minimal Configuration
 The minimum configuration required to start Vuegraf is shown below.
 
-InfluxDB v1:
-
-```json
-{
-    "influxDb": {
-        "host": "my.influxdb.hostname",
-        "port": 8086,
-        "user": "root",
-        "pass": "root",
-        "database": "vue",
-        "reset": false
-    },
-    "accounts": [
-        {
-            "name": "Primary Residence",
-            "email": "my@email.address",
-            "password": "my-emporia-password"
-        }
-    ]
-}
-```
-
-InfluxDB v2:
-
 ```json
 {
     "influxDb": {
@@ -73,7 +68,7 @@ InfluxDB v2:
         "url": "http://my.influxdb.hostname:8086",
         "org": "vuegraf",
         "bucket": "vuegraf",
-        "token": "veugraf-secret-token",
+        "token": "<my-secret-token>",
         "reset": false
     },
     "accounts": [
@@ -97,6 +92,8 @@ IMPORTANT - If you restart Vuegraf with historyDays still set to a non-zero valu
 ### Channel Names
 
 To provide more user-friendly names of each Vue device and branch circuit, the following device configuration can be added to the configuration file, within the account block. List each device and circuit in the order that you added them to the Vue mobile app. The channel names do not need to match the names specified in the Vue mobile app but the device names must match. The below example shows two 8-channel Vue devices for a home with two breaker panels.
+
+Be aware that the included dashboard assumes your device name contains the word "Panel". For best results, consider renaming your Vue device to contain that word, otherwise you will need to manually adjust the included dashboards' queries.
 
 ```json
             "devices": [
@@ -125,46 +122,6 @@ To provide more user-friendly names of each Vue device and branch circuit, the f
                         "Deep Freeze",
                         "Sprinkler Pump"        
                     ]
-                }
-            ]
-```
-
-### Per-second Data Details
-
-By default, Vuegraf will poll every minute to collect the energy usage value over the past 60 seconds. This results in a single value being capture per minute per channel, or 60 values per hour per channel. If you also would like to see per-second values, you can enable the detailed collection, which is polled once per hour, and backfilled over the previous 3600 seconds. This API call is very expensive on the Emporia servers, so it should not be polled more frequently than once per hour. To enable this detailed data, add (or update) the top-level `detailedDataEnabled` configuration value with a value of `true`.
-
-```
-detailedDataEnabled: true
-```
-
-## Vue Utility Connect Energy Monitor
-
-As reported in [discussion #104](https://github.com/jertel/vuegraf/discussions/104), the Utility Connect device is supported without any custom changes.
-
-## Smart Plugs
-
-To include an Emporia smart plug in the configuration, add each plug as it's own device, without channels. Again, the name of the Smart Plug device must exactly match the name you gave the device in the Vue app during initial registration.
-
-```json
-            devices: [
-                {
-                    "name": "Main Panel",
-                    "channels": [
-                        "Air Conditioner",
-                        "Furnace",
-                        "Coffee Maker",
-                        "Oven",
-                        "Dishwasher",
-                        "Tesla Charger",
-                        "Refrigerator",
-                        "Office"
-                    ]
-                },
-                {
-                    "name": "Projector Plug"
-                },
-                {
-                    "name": "3D-Printer Plug"
                 }
             ]
 ```
@@ -204,16 +161,77 @@ A Docker container is provided at [hub.docker.com](https://hub.docker.com/r/jert
 docker run --name vuegraf -d -v /home/myusername/vuegraf:/opt/vuegraf/conf jertel/vuegraf
 ```
 
-If you are new to Docker, the next two commands will help you get the InfluxDB (version 1) and Grafana containers up and running, assuming you have Docker installed and running already. In the above config example, your influxdb host name will be your host's real IP (*not* localhost or 127.0.0.1).
+If you are new to Docker, the next following command will help you get the InfluxDB container up and running, assuming you have Docker installed and running already. In the above config example, your influxdb URL will include your host's real IP (*not* localhost or 127.0.0.1).
 
 ```sh
-docker run -d --name influxdb -v /home/myusername/vuegraf:/var/lib/influxdb -p 8086:8086 influxdb:1.8-alpine
-docker run -d --name grafana -v /home/myusername/vuegraf:/var/lib/grafana -p 3000:3000 grafana/grafana
+docker run -d --name influxdb -v /home/myusername/vuegraf:/var/lib/influxdb2 -p 8086:8086 influxdb
 ```
 
-### Docker Compose
+## Alerts
 
-For those that want to run Vuegraf using Docker Compose, the following files have been included: `docker-compose.yaml.template` and `docker-compose-run.sh`. These assume InfluxDB version 1 will be utilized. Copy the`docker-compose.yaml.template` file to a new file called `docker-compose.yaml`. In the newly copied file, `vuegraf.volumes` values will need to be changed to the same directory you have created your vuegraf.json file. Additionally, adjust the persistent host storage path for the Grafana and InfluxDB data volumes.
+The included dashboard template does not contain any alerts, since each user will have very specific criteria and devices in mind for alerting. However, the below screenshots can help illustrate how a fully functioning alert and notification rule might look.
+
+This alert was edited via the text (Flux) interface since the alert edit UI does not yet accommodate advanced alerting inputs.
+
+![Influx Alert Edit](https://github.com/jertel/vuegraf/blob/master/screenshots/alert_edit.png?raw=true "Influx Alert")
+
+This notification rule provides an example of how you can have several alerts change the status to crit, but only a single notification rule is required to transmit notifications to external endpoints (such as email or Slack).
+
+![Influx Notification Rule](https://github.com/jertel/vuegraf/blob/master/screenshots/notification_rule.png?raw=true "Influx Notification Rule")
+
+
+# Additional Topics
+
+## Per-second Data Details
+
+By default, Vuegraf will poll every minute to collect the energy usage value over the past 60 seconds. This results in a single value being capture per minute per channel, or 60 values per hour per channel. If you also would like to see per-second values, you can enable the detailed collection, which is polled once per hour, and backfilled over the previous 3600 seconds. This API call is very expensive on the Emporia servers, so it should not be polled more frequently than once per hour. To enable this detailed data, add (or update) the top-level `detailedDataEnabled` configuration value with a value of `true`.
+
+```
+detailedDataEnabled: true
+```
+
+Again:
+
+- `detailed = True` represents backfilled per-second data that is optionally queried from Emporia once every hour.
+- `detailed = False` represents the per-minute average data that is collected every minute.
+
+When building graphs that show a sum of the energy usage, be sure to only include either detailed=true or detailed=false, otherwise your summed values will be higher than expected. Detailed data will take more time for the graphs to query due to the extra data involved. By default, it is set to False so most users can ignore this note.
+
+## Vue Utility Connect Energy Monitor
+
+As reported in [discussion #104](https://github.com/jertel/vuegraf/discussions/104), the Utility Connect device is supported without any custom changes.
+
+## Smart Plugs
+
+To include an Emporia smart plug in the configuration, add each plug as it's own device, without channels. Again, the name of the Smart Plug device must exactly match the name you gave the device in the Vue app during initial registration.
+
+```json
+            devices: [
+                {
+                    "name": "Main Panel",
+                    "channels": [
+                        "Air Conditioner",
+                        "Furnace",
+                        "Coffee Maker",
+                        "Oven",
+                        "Dishwasher",
+                        "Tesla Charger",
+                        "Refrigerator",
+                        "Office"
+                    ]
+                },
+                {
+                    "name": "Projector Plug"
+                },
+                {
+                    "name": "3D-Printer Plug"
+                }
+            ]
+```
+
+## Docker Compose
+
+For those that want to run Vuegraf using Docker Compose, the following files have been included: `docker-compose.yaml.template` and `docker-compose-run.sh`. Copy the`docker-compose.yaml.template` file to a new file called `docker-compose.yaml`. In the newly copied file, `vuegraf.volumes` values will need to be changed to the same directory you have created your vuegraf.json file. Additionally, adjust the persistent host storage path for the InfluxDB data volume.
 
 Finally run the `docker-compose-run.sh` script to start up the multi-container application. 
 
@@ -221,31 +239,30 @@ Finally run the `docker-compose-run.sh` script to start up the multi-container a
 ./docker-compose-run.sh
 ```
 
-# Grafana
+## Upgrading from InfluxDB v1
 
-Use [Grafana](https://grafana.com "Grafana") to visualize the data collected by Vuegraf. A sample [dashboard.json](https://github.com/jertel/vuegraf/blob/master/dashboard.json) file is provided with this project, to get started. However, this sample dashboard is only compatible with InfluxDB version 1.
+Early Vuegraf users still on InfluxDB v1 can upgrade to InfluxDB 2. To do so, stop the Influx v1 container (again, assuming you're using Docker). Then run the following command to install InfluxDB 2 and automatically upgrade your data.
 
-If you only have one Vue device you should remove the Left/Right panel references.
+```
+docker run -p 8086:8086 \
+  -v /opt/data/influxdb:/var/lib/influxdb \
+  -v /opt/data/influxdb2:/var/lib/influxdb2 \
+  -e DOCKER_INFLUXDB_INIT_MODE=upgrade \
+  -e DOCKER_INFLUXDB_INIT_USERNAME=vuegraf \
+  -e DOCKER_INFLUXDB_INIT_PASSWORD=vuegraf \
+  -e DOCKER_INFLUXDB_INIT_ORG=vuegraf \
+  -e DOCKER_INFLUXDB_INIT_BUCKET=vuegraf \
+  -e DOCKER_INFLUXDB_INIT_RETENTION=1y \
+  influxdb
+```
 
-Refer to the screenshots below for examples on how to define the InfluxDB data source, graphs, and alerts.
+The upgrade should complete relatively quickly. For reference, a 7GB database, spanning several months, upgrades in about 15 seconds on SSD storage.
 
-NOTE: The energy_usage measurement includes two types of data:
+Monitor the console output and once the upgrade completes and the Influx server finishes starting, shut it down (CTRL+C) and then restart the Influx DB using the command referenced earlier in this document.
 
-- `detailed = true` represents backfilled per-second data that is optionally queried from Emporia once every hour.
-- `detailed = false` represents the per-minute average data that is collected every minute.
+Login to the new Influx DB 2 UI from your web browser, using the _vuegraf / vuegraf_ credentials. Go into the _Load Data -> Buckets_ screen and rename the `vue/autogen` bucket to `vuegraf` via the Settings button.
 
-When building graphs that show a sum of the energy usage, be sure to only include either detailed=true or detailed=false, otherwise your summed values will be higher than expected.
-
-
-![Grafana Data Source Screenshot](https://github.com/jertel/vuegraf/blob/master/screenshots/datasource.png?raw=true "Data Source Example")
-
-A graph query is shown below, showing a simple filter to pull data for a specific circuit.
-
-![Query Example Screenshot](https://github.com/jertel/vuegraf/blob/master/screenshots/query.png?raw=true "Query Example")
-
-Grafana also supports alerts, with a number of alert channels, such as Email or Slack.
-
-![Alert Example Screenshot](https://github.com/jertel/vuegraf/blob/master/screenshots/alert.png?raw=true "Alert Example")
+Finally, apply the dashboard template as instructed earlier in this document.
 
 # License
 
