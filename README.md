@@ -37,7 +37,7 @@ By default, a new InfluxDB instance will not have any dashboards loaded. You wil
 
 The included template file named `influx_dashboard.json` includes the provided dashboard and accompanying variables to reproduce the visualizations shown below. This dashboard assumes your main device name contains the word `Panel`, such as `House Panel`, or `Right Panel`. If it does not, the Flux queries will need to be adjusted manually to look for your device's name.
 
-![Influx Dashboard Screenshot](https://github.com/jertel/vuegraf/blob/master/screenshots/influx_datasource.png?raw=true "Influx Dashboard")
+![Influx Dashboard Screenshot](https://github.com/jertel/vuegraf/blob/master/screenshots/influx_dashboard.png?raw=true "Influx Dashboard")
 
 You will need to apply this template file to your running InfluxDB instance. Copy the `influx_dashboard.json` file into your hosts' influxdb2 path. If you followed the Setup instructions above, the path would be `/opt/data/influxdb`. The below command can be used to perform this step. This command assumes you are running Influx in a container named `influxdb`.
 
