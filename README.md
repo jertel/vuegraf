@@ -21,7 +21,7 @@ This project is not affiliated with _emporia energy_ company.
 If you do not yet have a running InfluxDB 2 instance, you will need to set one up. You can do this very quickly by launching an InfluxDB 2 Docker container as follows:
 
 ```
-mkdir -p /opt/data/influxdb
+mkdir -p /opt/data/influxdb2
 docker run -v /opt/data/influxdb2:/var/lib/influxdb2 -p 8086:8086 -e INFLUXD_SESSION_LENGTH=432000 --name influxdb influxdb
 ```
 
@@ -39,7 +39,7 @@ The included template file named `influx_dashboard.json` includes the provided d
 
 ![Influx Dashboard Screenshot](https://github.com/jertel/vuegraf/blob/master/screenshots/influx_dashboard.png?raw=true "Influx Dashboard")
 
-You will need to apply this template file to your running InfluxDB instance. Copy the `influx_dashboard.json` file into your hosts' influxdb2 path. If you followed the Setup instructions above, the path would be `/opt/data/influxdb`. The below command can be used to perform this step. This command assumes you are running Influx in a container named `influxdb`.
+You will need to apply this template file to your running InfluxDB instance. Copy the `influx_dashboard.json` file into your hosts' influxdb2 path. If you followed the Setup instructions above, the path would be `/opt/data/influxdb2`. The below command can be used to perform this step. This command assumes you are running Influx in a container named `influxdb`.
 
 ```
 docker exec influxdb influx -f /var/lib/influxdb2/influx_dashboard.json --org vuegraf -t <my-influx-token>
@@ -244,7 +244,7 @@ Finally run the `docker-compose-run.sh` script to start up the multi-container a
 Early Vuegraf users still on InfluxDB v1 can upgrade to InfluxDB 2. To do so, stop the Influx v1 container (again, assuming you're using Docker). Then run the following command to install InfluxDB 2 and automatically upgrade your data.
 
 ```
-docker run -p 8086:8086 \
+docker run --rm --pull always -p 8086:8086 \
   -v /opt/data/influxdb:/var/lib/influxdb \
   -v /opt/data/influxdb2:/var/lib/influxdb2 \
   -e DOCKER_INFLUXDB_INIT_MODE=upgrade \
