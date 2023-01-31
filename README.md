@@ -50,6 +50,7 @@ Replace the `<my-influx-token>` with the All Access Token you generated in the I
 You're now ready to proceed with the Vuegraf configuration and startup.
 
 # Configuration
+
 The configuration allows for the definition of multiple Emporia Vue accounts. This will only be useful to users that need to pull metrics from multiple accounts. This is not needed if you have multiple Vue devices in a single account. Vuegraf will find multiple devices on its own within each account.
 
 The email address and password must match the credentials used when creating the Emporia Vue account in their mobile app.
@@ -155,17 +156,10 @@ python3 src/vuegraf/vuegraf.py vuegraf.json
 
 ## Container (recommended)
 
-A Docker container is provided at [hub.docker.com](https://hub.docker.com/r/jertel/vuegraf). Refer to the command below to launch Vuegraf as a container. This assumes you have create a folder called vuegraf and placed the vuegraf.json file inside of it.
+A Docker container is provided at [hub.docker.com](https://hub.docker.com/r/jertel/vuegraf). Refer to the command below to launch Vuegraf as a container. This assumes you have created a folder called `/home/myuser/vuegraf` and placed the vuegraf.json file inside of it.
 
 ```sh
 docker run --name vuegraf -d -v /home/myuser/vuegraf:/opt/vuegraf/conf jertel/vuegraf
-```
-
-If you are new to Docker, the next following command will help you get the InfluxDB container up and running, assuming you have Docker installed and running already. In the above config example, your influxdb URL will include your host's real IP (*not* localhost or 127.0.0.1).
-
-```sh
-mkdir -p /home/myuser/influxdb2
-docker run -d --name influxdb -v /home/myuser/influxdb2:/var/lib/influxdb2 -p 8086:8086 influxdb
 ```
 
 ## Alerts
