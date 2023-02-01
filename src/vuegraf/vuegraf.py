@@ -257,7 +257,7 @@ try:
 
                     if history:
                         for day in range(historyDays):
-                            info('Loading historical data: {} day ago'.format(day+1))
+                            info('Loading historical data: {} day(s) ago'.format(day+1))
                             #Extract second 12h of day
                             historyStartTime = stopTime - datetime.timedelta(seconds=3600*24*(day+1)-43200)
                             historyEndTime = stopTime - datetime.timedelta(seconds=(3600*24*(day)))

@@ -216,7 +216,8 @@
 						{
 							"base": "10",
 							"name": "y",
-							"scale": "linear"
+							"scale": "linear",
+							"suffix": "kW"
 						}
 					],
 					"colorizeRows": true,
