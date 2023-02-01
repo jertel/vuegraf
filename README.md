@@ -39,10 +39,10 @@ The included template file named `influx_dashboard.json` includes the provided d
 
 ![Influx Dashboard Screenshot](https://github.com/jertel/vuegraf/blob/master/screenshots/influx_dashboard.png?raw=true "Influx Dashboard")
 
-You will need to apply this template file to your running InfluxDB instance. Copy the `influx_dashboard.json` file into your hosts' influxdb2 path. If you followed the Setup instructions above, the path would be `/home/myuser/influxdb2`. The below command can be used to perform this step. This command assumes you are running Influx in a container named `influxdb`.
+You will need to apply this template file to your running InfluxDB instance. Copy the `influx_dashboard.json` file into your host's influxdb2 path. If you followed the Setup instructions above, the path would be `/home/myuser/influxdb2`. The below command can be used to perform this step. This command assumes you are running Influx in a container named `influxdb`.
 
 ```
-docker exec influxdb influx apply -f /var/lib/influxdb2/influx_dashboard.json --org vuegraf -t <my-influx-token>
+docker exec influxdb influx apply -f /var/lib/influxdb2/influx_dashboard.json --org vuegraf --force yes -t <my-influx-token>
 ```
 
 Replace the `<my-influx-token>` with the All Access Token you generated in the Influx _Load Data -> API Tokens_ screen.
@@ -128,7 +128,15 @@ Be aware that the included dashboard assumes your device name contains the word 
 ```
 
 # Running
-Vuegraf can be run either as a host process, or as a container (recommended).
+Vuegraf can be run either as a container (recommended), or as a host process.
+
+## Container (recommended)
+
+A Docker container is provided at [hub.docker.com](https://hub.docker.com/r/jertel/vuegraf). Refer to the command below to launch Vuegraf as a container. This assumes you have created a folder called `/home/myuser/vuegraf` and placed the vuegraf.json file inside of it.
+
+```sh
+docker run --name vuegraf -d -v /home/myuser/vuegraf:/opt/vuegraf/conf jertel/vuegraf
+```
 
 ## Host Process
 
@@ -152,14 +160,6 @@ python src/vuegraf/vuegraf.py vuegraf.json
 or, on some Linux installations:
 ```sh
 python3 src/vuegraf/vuegraf.py vuegraf.json
-```
-
-## Container (recommended)
-
-A Docker container is provided at [hub.docker.com](https://hub.docker.com/r/jertel/vuegraf). Refer to the command below to launch Vuegraf as a container. This assumes you have created a folder called `/home/myuser/vuegraf` and placed the vuegraf.json file inside of it.
-
-```sh
-docker run --name vuegraf -d -v /home/myuser/vuegraf:/opt/vuegraf/conf jertel/vuegraf
 ```
 
 ## Alerts

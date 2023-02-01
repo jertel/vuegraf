@@ -310,7 +310,7 @@
 					"hoverDimension": "xy",
 					"kind": "Xy",
 					"legendColorizeRows": true,
-					"legendOpacity": 0.5,
+					"legendOpacity": 0.75,
 					"legendOrientationThreshold": 100000000,
 					"name": "Individual Device Usage over Time Period",
 					"opacity": 1,
