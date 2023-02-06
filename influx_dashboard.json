@@ -485,7 +485,7 @@
 					"name": "Alarm Status",
 					"queries": [
 						{
-							"query": "from(bucket: \"_monitoring\")\n  |\u003e range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |\u003e filter(fn: (r) =\u003e r[\"_measurement\"] == \"statuses\")\n  |\u003e filter(fn: (r) =\u003e r[\"_field\"] == \"usage\")\n  |\u003e filter(fn: (r) =\u003e r[\"detailed\"] == \"False\")\n  |\u003e drop(columns: [\"_value\"])\n  |\u003e duplicate(column: \"_level\", as: \"_value\")\n  |\u003e map(fn: (r) =\u003e ({ r with _value: if r._value == \"ok\" then 0 else 1 }))\n  |\u003e map(fn: (r) =\u003e ({ r with _level: if r._level == \"ok\" then \"Ok\" else \"FAULT\" }))\n  |\u003e group(columns: [\"_check_id\"])\n  |\u003e last()\n  |\u003e group()"
+							"query": "from(bucket: \"_monitoring\")\n  |\u003e range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |\u003e filter(fn: (r) =\u003e r[\"_measurement\"] == \"statuses\")\n  |\u003e filter(fn: (r) =\u003e r[\"_field\"] == \"usage\")\n  |\u003e filter(fn: (r) =\u003e r[\"detailed\"] == \"False\")\n  |\u003e drop(columns: [\"_value\"])\n  |\u003e duplicate(column: \"_level\", as: \"_value\")\n  |\u003e map(fn: (r) =\u003e ({ r with _value: if r._value == \"ok\" then 0 else 1 }))\n  |\u003e map(fn: (r) =\u003e ({ r with _level: if r._level == \"ok\" then \"Ok\" else \"FAULT\" }))\n  |\u003e group(columns: [\"_check_id\"])\n  |\u003e sort(columns: [\"_time\"])\n  |\u003e last()\n  |\u003e group()"
 						}
 					],
 					"staticLegend": {},
