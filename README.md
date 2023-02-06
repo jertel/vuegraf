@@ -1,3 +1,5 @@
+![Vuegraf Logo](https://github.com/jertel/vuegraf/blob/master/vuegraf.png?raw=true "Vuegraf Logo")
+
 # Overview
 
 The [Emporia Vue](https://emporiaenergy.com "Emporia's Homepage") energy monitoring kit allows homeowners to monitor their electrical usage. It monitors the main feed consumption and up to 8 (or 16 in the newer version) individual branch circuits, and feeds that data back to the Emporia API server.
@@ -167,6 +169,8 @@ python3 src/vuegraf/vuegraf.py vuegraf.json
 The included dashboard template does not contain any alerts, since each user will have very specific criteria and devices in mind for alerting. However, the below screenshots can help illustrate how a fully functioning alert and notification rule might look.
 
 This alert was edited via the text (Flux) interface since the alert edit UI does not yet accommodate advanced alerting inputs.
+
+Note! The logo at the top of this documentation satisifes Slack's icon requirements. Consider using it to help quickly distinguish between other alerts.
 
 ![Influx Alert Edit](https://github.com/jertel/vuegraf/blob/master/screenshots/alert_edit.png?raw=true "Influx Alert")
 
