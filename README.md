@@ -166,11 +166,11 @@ python3 src/vuegraf/vuegraf.py vuegraf.json
 
 ## Alerts
 
-The included dashboard template does not contain any alerts, since each user will have very specific criteria and devices in mind for alerting. However, the below screenshots can help illustrate how a fully functioning alert and notification rule might look.
+The included dashboard template contains two alerts which will trigger when either a power outage occurs, or a loss of Vuegraf data. There are various reasons why alerts can be helpful. See the below screenshots which help illustrate how a fully functioning alert and notification rule might look. Note that the included alerts do not send out notifications. To enable outbound notifactions, such as to Slack, you can create a Notification Endpoint and Notification Rule.
 
 This alert was edited via the text (Flux) interface since the alert edit UI does not yet accommodate advanced alerting inputs.
 
-Note! The logo at the top of this documentation satisifes Slack's icon requirements. Consider using it to help quickly distinguish between other alerts.
+Side note: The logo at the top of this documentation satisfies Slack's icon requirements. Consider using it to help quickly distinguish between other alerts.
 
 ![Influx Alert Edit](https://github.com/jertel/vuegraf/blob/master/screenshots/alert_edit.png?raw=true "Influx Alert")
 
