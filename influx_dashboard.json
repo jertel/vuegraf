@@ -1,0 +1,567 @@
+[
+	{
+		"apiVersion": "influxdata.com/v2alpha1",
+		"kind": "Label",
+		"metadata": {
+			"name": "xenodochial-greider-36f001"
+		},
+		"spec": {
+			"color": "#009f5f",
+			"name": "outage"
+		}
+	},
+	{
+		"apiVersion": "influxdata.com/v2alpha1",
+		"kind": "CheckDeadman",
+		"metadata": {
+			"name": "noshing-borg-b6f003"
+		},
+		"spec": {
+			"every": "1m0s",
+			"level": "CRIT",
+			"name": "Energy Data Lost",
+			"query": "from(bucket: \"vue/autogen\")\n  |\u003e range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |\u003e filter(fn: (r) =\u003e r[\"_measurement\"] == \"energy_usage\")\n  |\u003e filter(fn: (r) =\u003e r[\"_field\"] == \"usage\")",
+			"staleTime": "10m0s",
+			"status": "active",
+			"statusMessageTemplate": "Check: ${ r._check_name } is: ${ r._level }",
+			"timeSince": "1m30s"
+		}
+	},
+	{
+		"apiVersion": "influxdata.com/v2alpha1",
+		"kind": "CheckThreshold",
+		"metadata": {
+			"name": "competent-hopper-f6f003"
+		},
+		"spec": {
+			"every": "1m0s",
+			"name": "Power Outage",
+			"query": "from(bucket: \"vuegraf\")\n  |\u003e range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |\u003e filter(fn: (r) =\u003e r[\"_measurement\"] == \"energy_usage\")\n  |\u003e filter(fn: (r) =\u003e r[\"_field\"] == \"usage\")\n  |\u003e filter(fn: (r) =\u003e r[\"detailed\"] == \"False\")\n  |\u003e filter(fn: (r) =\u003e r[\"device_name\"] =~ /Panel/)\n  |\u003e aggregateWindow(every: 1m, fn: max, createEmpty: false)\n  |\u003e yield(name: \"max\")",
+			"status": "active",
+			"statusMessageTemplate": "Check: ${ r._check_name } is: ${ r._level }",
+			"thresholds": [
+				{
+					"level": "CRIT",
+					"type": "lesser",
+					"value": 1
+				}
+			]
+		}
+	},
+	{
+		"apiVersion": "influxdata.com/v2alpha1",
+		"kind": "Variable",
+		"metadata": {
+			"name": "flamboyant-einstein-76f005"
+		},
+		"spec": {
+			"language": "flux",
+			"name": "Account",
+			"query": "import \"influxdata/influxdb/schema\"\nimport \"array\"\n\ndynamic = schema.tagValues(bucket: \"vuegraf\", tag: \"account_name\")\n\nstatic = array.from(\n    rows: [\n        {\n            _value: \"(All)\",\n        },\n    ],\n)\n\nunion(tables: [static, dynamic])",
+			"selected": [
+				"(All)"
+			],
+			"type": "query"
+		}
+	},
+	{
+		"apiVersion": "influxdata.com/v2alpha1",
+		"kind": "Variable",
+		"metadata": {
+			"name": "funny-kapitsa-76f009"
+		},
+		"spec": {
+			"name": "DetailedDataEnabled",
+			"selected": [
+				"False"
+			],
+			"type": "constant",
+			"values": [
+				"True",
+				"False"
+			]
+		}
+	},
+	{
+		"apiVersion": "influxdata.com/v2alpha1",
+		"kind": "Variable",
+		"metadata": {
+			"name": "inspiring-shockley-b6f001"
+		},
+		"spec": {
+			"language": "flux",
+			"name": "Device",
+			"query": "import \"influxdata/influxdb/schema\"\nimport \"array\"\n\ndynamic = schema.tagValues(bucket: \"vuegraf\", tag: \"device_name\")\n\nstatic = array.from(\n    rows: [\n        {\n            _value: \"(All)\",\n        },\n    ],\n)\n\nunion(tables: [static, dynamic])",
+			"selected": [
+				"(All)"
+			],
+			"type": "query"
+		}
+	},
+	{
+		"apiVersion": "influxdata.com/v2alpha1",
+		"kind": "Variable",
+		"metadata": {
+			"name": "realistic-kowalevski-76f007"
+		},
+		"spec": {
+			"name": "CostPerkWh",
+			"selected": [
+				"0.12"
+			],
+			"type": "constant",
+			"values": [
+				"0.10",
+				"0.11",
+				"0.12",
+				"0.13",
+				"0.14",
+				"0.15",
+				"0.16",
+				"0.17",
+				"0.18",
+				"0.19",
+				"0.20",
+				"0.21",
+				"0.22",
+				"0.23",
+				"0.24",
+				"0.25",
+				"0.26",
+				"0.27",
+				"0.28",
+				"0.29",
+				"0.30",
+				"0.31",
+				"0.32",
+				"0.33",
+				"0.34",
+				"0.35",
+				"0.36",
+				"0.37",
+				"0.38",
+				"0.39",
+				"0.40",
+				"0.41",
+				"0.42",
+				"0.43",
+				"0.44",
+				"0.45",
+				"0.46",
+				"0.47",
+				"0.48",
+				"0.49",
+				"0.50",
+				"0.51",
+				"0.52",
+				"0.53",
+				"0.54",
+				"0.55",
+				"0.56",
+				"0.57",
+				"0.58",
+				"0.59",
+				"0.60",
+				"0.61",
+				"0.62",
+				"0.63",
+				"0.64",
+				"0.65",
+				"0.66",
+				"0.67",
+				"0.68",
+				"0.69",
+				"0.70",
+				"0.71",
+				"0.72",
+				"0.73",
+				"0.74",
+				"0.75",
+				"0.76",
+				"0.77",
+				"0.78",
+				"0.79",
+				"0.80",
+				"0.81",
+				"0.82",
+				"0.83",
+				"0.84",
+				"0.85",
+				"0.86",
+				"0.87",
+				"0.88",
+				"0.89",
+				"0.90",
+				"0.91",
+				"0.92",
+				"0.93",
+				"0.94",
+				"0.95",
+				"0.96",
+				"0.97",
+				"0.98",
+				"0.99"
+			]
+		}
+	},
+	{
+		"apiVersion": "influxdata.com/v2alpha1",
+		"kind": "Dashboard",
+		"metadata": {
+			"name": "musing-gauss-b6f001"
+		},
+		"spec": {
+			"charts": [
+				{
+					"colors": [
+						{
+							"hex": "#7CE490",
+							"id": "0",
+							"name": "honeydew",
+							"type": "min"
+						},
+						{
+							"hex": "#FFD255",
+							"id": "EWB_hfTr0JyVEfRaI7TtX",
+							"name": "thunder",
+							"type": "threshold",
+							"value": 3
+						},
+						{
+							"hex": "#DC4E58",
+							"id": "k6XHqpWMc-pSrzoRu8pXD",
+							"name": "fire",
+							"type": "threshold",
+							"value": 5
+						},
+						{
+							"hex": "#BF3D5E",
+							"id": "1",
+							"name": "ruby",
+							"type": "max",
+							"value": 10
+						}
+					],
+					"decimalPlaces": 1,
+					"height": 4,
+					"kind": "Gauge",
+					"name": "Most Recent Combined Usage",
+					"queries": [
+						{
+							"query": "accountFilter = (tables=\u003c-) =\u003e\n  if v.Account != \"(All)\" then\n    tables |\u003e filter(fn: (r) =\u003e r[\"account_name\"] == v.Account)\n  else\n    tables\n\nfrom(bucket: \"vuegraf\")\n  |\u003e range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |\u003e filter(fn: (r) =\u003e r[\"_measurement\"] == \"energy_usage\")\n  |\u003e accountFilter()\n  |\u003e filter(fn: (r) =\u003e r[\"device_name\"] =~ /Panel/ and r[\"device_name\"] !~ /-Balance/)\n  |\u003e filter(fn: (r) =\u003e (r[\"detailed\"] == \"False\"))\n  |\u003e group(columns: [\"_time\"])\n  |\u003e sum()\n  |\u003e map(fn: (r) =\u003e ({ r with _value: r._value / 1000.0}))\n  |\u003e group()\n  |\u003e last()"
+						}
+					],
+					"staticLegend": {},
+					"suffix": " kW",
+					"width": 3
+				},
+				{
+					"axes": [
+						{
+							"base": "10",
+							"name": "x",
+							"scale": "linear"
+						},
+						{
+							"base": "10",
+							"name": "y",
+							"scale": "linear",
+							"suffix": "kW"
+						}
+					],
+					"colorizeRows": true,
+					"colors": [
+						{
+							"hex": "#31C0F6",
+							"id": "dNYnHkyoVodZBiY5Ah-1Y",
+							"name": "Nineteen Eighty Four",
+							"type": "scale"
+						},
+						{
+							"hex": "#A500A5",
+							"id": "N-KsOA9A4CWWm1TXAgmPp",
+							"name": "Nineteen Eighty Four",
+							"type": "scale"
+						},
+						{
+							"hex": "#FF7E27",
+							"id": "KXxluUZHVG6IGhsRq2QK0",
+							"name": "Nineteen Eighty Four",
+							"type": "scale"
+						}
+					],
+					"geom": "line",
+					"height": 4,
+					"hoverDimension": "auto",
+					"kind": "Xy",
+					"legendColorizeRows": true,
+					"legendOpacity": 1,
+					"legendOrientationThreshold": 100000000,
+					"name": "Combined Usage over Time Period",
+					"opacity": 1,
+					"orientationThreshold": 100000000,
+					"position": "overlaid",
+					"queries": [
+						{
+							"query": "accountFilter = (tables=\u003c-) =\u003e\n  if v.Account != \"(All)\" then\n    tables |\u003e filter(fn: (r) =\u003e r[\"account_name\"] == v.Account)\n  else\n    tables\n\nfrom(bucket: \"vuegraf\")\n  |\u003e range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |\u003e filter(fn: (r) =\u003e r[\"_measurement\"] == \"energy_usage\")\n  |\u003e accountFilter()\n  |\u003e filter(fn: (r) =\u003e r[\"device_name\"] =~ /Panel/ and r[\"device_name\"] !~ /-Balance/)\n  |\u003e filter(fn: (r) =\u003e (r[\"detailed\"] == \"False\"))\n  |\u003e group(columns: [\"_time\"])\n  |\u003e sum()\n  |\u003e map(fn: (r) =\u003e ({ r with _value: r._value / 1000.0}))\n  |\u003e group()"
+						}
+					],
+					"shade": true,
+					"staticLegend": {
+						"colorizeRows": true,
+						"opacity": 1,
+						"orientationThreshold": 100000000,
+						"widthRatio": 1
+					},
+					"width": 12,
+					"widthRatio": 1,
+					"xCol": "_time",
+					"yCol": "_value",
+					"yPos": 4
+				},
+				{
+					"axes": [
+						{
+							"base": "10",
+							"name": "x",
+							"scale": "linear"
+						},
+						{
+							"base": "10",
+							"name": "y",
+							"scale": "linear",
+							"suffix": "W"
+						}
+					],
+					"colorizeRows": true,
+					"colors": [
+						{
+							"hex": "#74D495",
+							"id": "HtHVo9w6qtur77QlYwY2B",
+							"name": "Atlantis",
+							"type": "scale"
+						},
+						{
+							"hex": "#3F3FBA",
+							"id": "xVw_K2WdESvGIhqDSt1re",
+							"name": "Atlantis",
+							"type": "scale"
+						},
+						{
+							"hex": "#FF4D9E",
+							"id": "bH9L5-MEa6kMawcnqcqKY",
+							"name": "Atlantis",
+							"type": "scale"
+						}
+					],
+					"geom": "line",
+					"height": 4,
+					"heightRatio": 0.75,
+					"hoverDimension": "xy",
+					"kind": "Xy",
+					"legendColorizeRows": true,
+					"legendOpacity": 0.77,
+					"legendOrientationThreshold": 100000000,
+					"name": "Individual Device Usage over Time Period",
+					"opacity": 1,
+					"orientationThreshold": 100000000,
+					"position": "overlaid",
+					"queries": [
+						{
+							"query": "accountFilter = (tables=\u003c-) =\u003e\n  if v.Account != \"(All)\" then\n    tables |\u003e filter(fn: (r) =\u003e r[\"account_name\"] == v.Account)\n  else\n    tables\n\ndeviceFilter = (tables=\u003c-) =\u003e\n  if v.Device == \"(All)\" then\n    tables |\u003e filter(fn: (r) =\u003e r[\"device_name\"] !~ /Panel/)\n  else\n    tables |\u003e filter(fn: (r) =\u003e r[\"device_name\"] == v.Device)\n\nfrom(bucket: \"vuegraf\")\n  |\u003e range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |\u003e filter(fn: (r) =\u003e r[\"_measurement\"] == \"energy_usage\")\n  |\u003e accountFilter()\n  |\u003e deviceFilter()\n  |\u003e filter(fn: (r) =\u003e (r[\"detailed\"] == \"False\" and r[\"device_name\"] =~ /-Balance/) or (r[\"detailed\"] == v.DetailedDataEnabled and r[\"device_name\"] !~ /-Balance/))\n  |\u003e group(columns: [\"device_name\"])\n  |\u003e aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)\n  |\u003e yield(name: \"mean\")"
+						}
+					],
+					"shade": true,
+					"staticLegend": {
+						"colorizeRows": true,
+						"heightRatio": 0.75,
+						"opacity": 1,
+						"orientationThreshold": 100000000,
+						"valueAxis": "y",
+						"widthRatio": 1
+					},
+					"valueAxis": "y",
+					"width": 12,
+					"widthRatio": 1,
+					"xCol": "_time",
+					"yCol": "_value",
+					"yPos": 8
+				},
+				{
+					"colors": [
+						{
+							"hex": "#FFD255",
+							"id": "base",
+							"name": "thunder",
+							"type": "text"
+						}
+					],
+					"decimalPlaces": 0,
+					"height": 2,
+					"kind": "Single_Stat",
+					"name": "Accumulated Combined Usage",
+					"queries": [
+						{
+							"query": "accountFilter = (tables=\u003c-) =\u003e\n  if v.Account != \"(All)\" then\n    tables |\u003e filter(fn: (r) =\u003e r[\"account_name\"] == v.Account)\n  else\n    tables\n\nfrom(bucket: \"vuegraf\")\n  |\u003e range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |\u003e filter(fn: (r) =\u003e r[\"_measurement\"] == \"energy_usage\")\n  |\u003e accountFilter()\n  |\u003e filter(fn: (r) =\u003e r[\"device_name\"] =~ /Panel/ and r[\"device_name\"] !~ /-Balance/)\n  |\u003e filter(fn: (r) =\u003e (r[\"detailed\"] == \"False\"))\n  |\u003e group(columns: [\"_time\"])\n  |\u003e sum()\n  |\u003e map(fn: (r) =\u003e ({ r with _value: (r._value / 60000.0)}))\n  |\u003e group()\n  |\u003e sum()"
+						}
+					],
+					"staticLegend": {},
+					"suffix": " kWh",
+					"width": 3,
+					"xPos": 3
+				},
+				{
+					"colors": [
+						{
+							"hex": "#BF3D5E",
+							"id": "base",
+							"name": "ruby",
+							"type": "text"
+						}
+					],
+					"decimalPlaces": 2,
+					"height": 2,
+					"kind": "Single_Stat",
+					"name": "Accumulated Combined Cost",
+					"prefix": "$",
+					"queries": [
+						{
+							"query": "accountFilter = (tables=\u003c-) =\u003e\n  if v.Account != \"(All)\" then\n    tables |\u003e filter(fn: (r) =\u003e r[\"account_name\"] == v.Account)\n  else\n    tables\n\nfrom(bucket: \"vuegraf\")\n  |\u003e range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |\u003e filter(fn: (r) =\u003e r[\"_measurement\"] == \"energy_usage\")\n  |\u003e accountFilter()\n  |\u003e filter(fn: (r) =\u003e r[\"device_name\"] =~ /Panel/ and r[\"device_name\"] !~ /-Balance/)\n  |\u003e filter(fn: (r) =\u003e (r[\"detailed\"] == \"False\"))\n  |\u003e group(columns: [\"_time\"])\n  |\u003e sum()\n  |\u003e map(fn: (r) =\u003e ({ r with _value: (r._value / 60000.0) * float(v: v.CostPerkWh)}))\n  |\u003e group()\n  |\u003e sum()"
+						}
+					],
+					"staticLegend": {},
+					"width": 3,
+					"xPos": 3,
+					"yPos": 2
+				},
+				{
+					"colors": [
+						{
+							"hex": "#4ED8A0",
+							"id": "base",
+							"name": "rainforest",
+							"type": "text"
+						},
+						{
+							"hex": "#4ED8A0",
+							"id": "WSyp2s3QMf552_5MxZ82q",
+							"name": "rainforest",
+							"type": "text"
+						},
+						{
+							"hex": "#00C9FF",
+							"id": "uq4MehfknGiAspmyZGYlo",
+							"name": "laser",
+							"type": "text",
+							"value": 1
+						},
+						{
+							"hex": "#F48D38",
+							"id": "wrpn7oZHPA5FbdpFjIiaO",
+							"name": "tiger",
+							"type": "text",
+							"value": 2
+						},
+						{
+							"hex": "#BF3D5E",
+							"id": "sAeFfBE5HDJfnIS_4EFWq",
+							"name": "ruby",
+							"type": "text",
+							"value": 3
+						}
+					],
+					"fieldOptions": [
+						{
+							"displayName": "Alarm",
+							"fieldName": "_check_name",
+							"visible": true
+						},
+						{
+							"displayName": "Severity",
+							"fieldName": "_value",
+							"visible": true
+						},
+						{
+							"displayName": "Status",
+							"fieldName": "_level",
+							"visible": true
+						},
+						{
+							"displayName": "Alarm",
+							"fieldName": "Alarm"
+						},
+						{
+							"displayName": "Status",
+							"fieldName": "Status"
+						},
+						{
+							"displayName": "_start",
+							"fieldName": "_start"
+						},
+						{
+							"displayName": "_stop",
+							"fieldName": "_stop"
+						},
+						{
+							"displayName": "Update Time",
+							"fieldName": "_time"
+						},
+						{
+							"displayName": "_check_id",
+							"fieldName": "_check_id"
+						},
+						{
+							"displayName": "_field",
+							"fieldName": "_field"
+						},
+						{
+							"displayName": "_measurement",
+							"fieldName": "_measurement"
+						},
+						{
+							"displayName": "_source_measurement",
+							"fieldName": "_source_measurement"
+						},
+						{
+							"displayName": "_type",
+							"fieldName": "_type"
+						},
+						{
+							"displayName": "account_name",
+							"fieldName": "account_name"
+						},
+						{
+							"displayName": "detailed",
+							"fieldName": "detailed"
+						},
+						{
+							"displayName": "device_name",
+							"fieldName": "device_name"
+						},
+						{
+							"displayName": "Update Time",
+							"fieldName": "Update Time"
+						}
+					],
+					"height": 4,
+					"kind": "Table",
+					"name": "Alarm Status",
+					"queries": [
+						{
+							"query": "from(bucket: \"_monitoring\")\n  |\u003e range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |\u003e filter(fn: (r) =\u003e r[\"_measurement\"] == \"statuses\")\n  |\u003e filter(fn: (r) =\u003e r[\"_field\"] == \"_message\")\n  |\u003e filter(fn: (r) =\u003e r[\"detailed\"] == \"False\")\n  |\u003e drop(columns: [\"_value\"])\n  |\u003e duplicate(column: \"_level\", as: \"_value\")\n  |\u003e map(fn: (r) =\u003e ({ r with _value: if r._value == \"ok\" then 0 else if r._value == \"info\" then 1 else if r._value == \"warn\" then 2 else 3 }))\n  |\u003e group(columns: [\"_check_id\"])\n  |\u003e sort(columns: [\"_time\"])\n  |\u003e last()\n  |\u003e group()\n  |\u003e keep(columns: [\"_check_name\",\"_level\",\"_value\"])"
+						}
+					],
+					"staticLegend": {},
+					"tableOptions": {
+						"sortBy": "Alarm",
+						"verticalTimeAxis": true
+					},
+					"timeFormat": "YYYY-MM-DD HH:mm:ss",
+					"width": 6,
+					"xPos": 6
+				}
+			],
+			"name": "Vuegraf Energy Dashboard"
+		}
+	}
+]
