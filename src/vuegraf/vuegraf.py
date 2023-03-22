@@ -120,7 +120,7 @@ def createDataPoint(account, chanName, watts, timestamp, detailed):
         }
     return dataPoint
 
-def extractDataPoints(device, usageDataPoints, historyStartTime=None, historyEndTime=None):
+def extractDataPoints(device, usageDataPoints, historyStartTime=None, historyEndTime=None, histLoop=None):
     excludedDetailChannelNumbers = ['Balance', 'TotalUsage']
     minutesInAnHour = 60
     secondsInAMinute = 60
@@ -143,6 +143,7 @@ def extractDataPoints(device, usageDataPoints, historyStartTime=None, historyEnd
             continue
 
         if collectDetails:
+            #Seconds
             usage, usage_start_time = account['vue'].get_chart_usage(chan, detailedStartTime, stopTime, scale=Scale.SECOND.value, unit=Unit.KWH.value)
             index = 0
             for kwhUsage in usage:
@@ -154,7 +155,7 @@ def extractDataPoints(device, usageDataPoints, historyStartTime=None, historyEnd
                 index += 1
         
         # fetches historical minute data
-        if historyStartTime is not None and historyEndTime is not None:
+        if histLoop == "minute" or collectSummaries:
             usage, usage_start_time = account['vue'].get_chart_usage(chan, historyStartTime, historyEndTime, scale=Scale.MINUTE.value, unit=Unit.KWH.value)
             index = 0
             for kwhUsage in usage:
@@ -163,7 +164,61 @@ def extractDataPoints(device, usageDataPoints, historyStartTime=None, historyEnd
                 timestamp = historyStartTime + datetime.timedelta(minutes=index)
                 watts = float(minutesInAnHour * wattsInAKw) * kwhUsage
                 usageDataPoints.append(createDataPoint(account, chanName, watts, timestamp, False))
+        
                 index += 1
+        # fetches historical hour data
+        if histLoop == "day-hour" or collectSummaries:
+
+            #Fetches historical hour data
+            historyStartTime = stopTime - datetime.timedelta(days=historyDays)
+            historyStartTime = historyStartTime.replace( hour=00, minute=00, second=00, microsecond=00)
+            dayLoop = historyDays / 25
+            historyEndTime = historyStartTime + datetime.timedelta(days=25)
+            historyEndTime = historyEndTime.replace( hour=23,minute=59, second=59, microsecond=999999)
+            dayLoop = historyDays / 25
+            while dayLoop > 0 :
+                historyEndTime = min(stopTime, historyStartTime + datetime.timedelta(days=25))
+                historyEndTime = historyEndTime.replace( hour=23,minute=59, second=59, microsecond=999999)
+                usage, usage_start_time = account['vue'].get_chart_usage(chan, historyStartTime, historyEndTime, scale=Scale.HOUR.value, unit=Unit.KWH.value)
+                index = 0
+                for kwhUsage in usage:
+                    if kwhUsage is None:
+                        continue
+                    timestamp = usage_start_time + datetime.timedelta(hours=index)
+                    watts =   kwhUsage * 1000
+                    usageDataPoints.append(createDataPoint(account, chanName, watts, timestamp, "Hour"))
+                    index += 1
+                dayLoop = dayLoop -1
+                historyStartTime = historyStartTime + datetime.timedelta(days=26)
+
+            # fetches historical Day data
+            historyStartTime = stopTime - datetime.timedelta(days=historyDays)
+            historyStartTime = historyStartTime.replace( hour=00, minute=00, second=00, microsecond=00)
+            dayLoop = historyDays / 25
+            historyEndTime = historyStartTime + datetime.timedelta(days=25)
+            historyEndTime = historyEndTime.replace( hour=23,minute=59, second=59, microsecond=999999)
+            dayLoop = historyDays / 25
+            while dayLoop > 0 :
+                historyEndTime = min(stopTime, historyStartTime + datetime.timedelta(days=25))
+                historyEndTime = historyEndTime.replace( hour=23,minute=59, second=59, microsecond=999999)
+                usage, usage_start_time = account['vue'].get_chart_usage(chan, historyStartTime, historyEndTime, scale=Scale.DAY.value, unit=Unit.KWH.value)
+                index = 0
+                for kwhUsage in usage:
+                    if kwhUsage is None:
+                        continue
+                    timestamp = usage_start_time + datetime.timedelta(days=index)
+                    watts =   kwhUsage * 1000
+                    usageDataPoints.append(createDataPoint(account, chanName, watts, timestamp, "Day"))
+                    index += 1
+                dayLoop = dayLoop -1
+                historyStartTime = historyStartTime + datetime.timedelta(days=26)
+                
+                
+                    
+            
+
+
+            
 
 startupTime = datetime.datetime.utcnow()
 try:
@@ -230,28 +285,30 @@ try:
             influx.delete_series(measurement='energy_usage')
             setconfig('influxDb','reset','false') 
 
-    historyDays = min(config['influxDb'].get('historyDays', 0), 7)
+    historyMinute = min(config['influxDb'].get('historyDays', 0), 7)
+    historyDays = min(config['influxDb'].get('historyDays', 0), 720)
     history = historyDays > 0
 
     running = True
-
     signal.signal(signal.SIGINT, handleExit)
     signal.signal(signal.SIGHUP, handleExit)
-
     pauseEvent = Event()
-
     intervalSecs=getConfigValue("updateIntervalSecs", 60)
     detailedIntervalSecs=getConfigValue("detailedIntervalSecs", 3600)
-    detailedDataEnabled=getConfigValue("detailedDataEnabled", False);
-    info('Settings -> updateIntervalSecs: {}, detailedEnabled: {}, detailedIntervalSecs: {}'.format(intervalSecs, detailedDataEnabled, detailedIntervalSecs))
+    detailedDataEnabled=getConfigValue("detailedDataEnabled", False)
+    summariesDataEnabled=getConfigValue('summariesDataEnabled', False)
+    info('Settings -> updateIntervalSecs: {}, detailedEnabled: {}, detailedIntervalSecs: {}, summariesEnabled {}'.format(intervalSecs, detailedDataEnabled, detailedIntervalSecs, summariesDataEnabled))
+    info(' History Days {}'.format(historyDays))
     lagSecs=getConfigValue("lagSecs", 5)
     detailedStartTime = startupTime
-
+    #Only pull Hourly data and Full day after 0200 
+    summariesDate = datetime.datetime.now() + datetime.timedelta(days=1)
+    summariesDate = summariesDate.replace(hour=2)
     while running:
         now = datetime.datetime.utcnow()
         stopTime = now - datetime.timedelta(seconds=lagSecs)
         collectDetails = detailedDataEnabled and detailedIntervalSecs > 0 and (stopTime - detailedStartTime).total_seconds() >= detailedIntervalSecs
-
+        collectSummaries = summariesDataEnabled and datetime.datetime.now()  >= summariesDate
         for account in config["accounts"]:
             if 'vue' not in account:
                 account['vue'] = PyEmVue()
@@ -268,19 +325,33 @@ try:
                         extractDataPoints(device, usageDataPoints)
 
                     if history:
-                        for day in range(historyDays):
-                            info('Loading historical data: {} day(s) ago'.format(day+1))
+                        for day in range(historyMinute):
+                            histLoop = "**********minute************"
+                            info('Loading historical data - Minutes: {} day(s) ago'.format(day+1))
                             #Extract second 12h of day
                             historyStartTime = stopTime - datetime.timedelta(seconds=3600*24*(day+1)-43200)
                             historyEndTime = stopTime - datetime.timedelta(seconds=(3600*24*(day)))
                             for gid, device in usages.items():
-                                extractDataPoints(device, usageDataPoints, historyStartTime, historyEndTime)
+                                extractDataPoints(device, usageDataPoints, historyStartTime, historyEndTime, histLoop)
                             pauseEvent.wait(5)
                             #Extract first 12h of day
                             historyStartTime = stopTime - datetime.timedelta(seconds=3600*24*(day+1))
                             historyEndTime = stopTime - datetime.timedelta(seconds=(3600*24*(day+1))-43200)
                             for gid, device in usages.items():
-                                extractDataPoints(device, usageDataPoints, historyStartTime, historyEndTime)
+                                extractDataPoints(device, usageDataPoints, historyStartTime, historyEndTime, histLoop)
+                            if not running:
+                                break
+                            pauseEvent.wait(5)
+
+                        if summariesDataEnabled:
+                            histLoop = "day-hour"
+                            info('Loading historical data - Days/Hours/Months: {} day(s) ago'.format(historyDays))   
+                            for gid, device in usages.items():
+                                historyStartTime = stopTime - datetime.timedelta(seconds=3600*24*(historyDays))
+                                historyEndTime = stopTime 
+                                historyStartTime = historyStartTime.replace( hour=00, minute=00, second=00, microsecond=00)
+                                historyEndTime = historyEndTime.replace( hour=23,minute=59, second=59, microsecond=999999)
+                                extractDataPoints(device, usageDataPoints, historyStartTime, historyEndTime, histLoop)
                             if not running:
                                 break
                             pauseEvent.wait(5)
@@ -294,7 +365,7 @@ try:
                     if influxVersion == 2:
                         write_api.write(bucket=bucket, record=usageDataPoints)
                     else:
-                        influx.write_points(usageDataPoints)
+                        influx.write_points(usageDataPoints,batch_size=5000)
 
             except:
                 error('Failed to record new usage data: {}'.format(sys.exc_info())) 
@@ -302,11 +373,14 @@ try:
 
         if collectDetails:
             detailedStartTime = stopTime + datetime.timedelta(seconds=1)
-
+        if collectSummaries:
+            summariesDate = datetime.datetime.now() + datetime.timedelta(days=1)
+            summariesDate = summariesDate.replace(hour=2)
         pauseEvent.wait(intervalSecs)
 
     info('Finished')
 except:
     error('Fatal error: {}'.format(sys.exc_info())) 
     traceback.print_exc()
+
 

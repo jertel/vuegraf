@@ -7,9 +7,12 @@
         "database": "vue",
         "reset": false,
         "ssl_enable": false,
-        "ssl_verify": true
+        "ssl_verify": true,
+
     },
     "updateIntervalSecs": 60,
+    "detailedDataEnabled": "true",
+    "summariesDataEnabled": "false"
     "accounts": [
         {
             "name": "Primary Residence",
