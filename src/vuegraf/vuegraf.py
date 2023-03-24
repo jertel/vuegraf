@@ -176,7 +176,7 @@ def extractDataPoints(device, usageDataPoints, historyStartTime=None, historyEnd
             historyEndTime = historyStartTime + datetime.timedelta(days=25)
             historyEndTime = historyEndTime.replace( hour=23,minute=59, second=59, microsecond=999999)
             dayLoop = historyDays / 25
-            while dayLoop > 0 :
+            while dayLoop > 0  and historyStartTime < stopTime :
                 historyEndTime = min(stopTime, historyStartTime + datetime.timedelta(days=25))
                 historyEndTime = historyEndTime.replace( hour=23,minute=59, second=59, microsecond=999999)
                 usage, usage_start_time = account['vue'].get_chart_usage(chan, historyStartTime, historyEndTime, scale=Scale.HOUR.value, unit=Unit.KWH.value)
@@ -198,7 +198,7 @@ def extractDataPoints(device, usageDataPoints, historyStartTime=None, historyEnd
             historyEndTime = historyStartTime + datetime.timedelta(days=25)
             historyEndTime = historyEndTime.replace( hour=23,minute=59, second=59, microsecond=999999)
             dayLoop = historyDays / 25
-            while dayLoop > 0 :
+            while dayLoop > 0  and historyStartTime < stopTime :
                 historyEndTime = min(stopTime, historyStartTime + datetime.timedelta(days=25))
                 historyEndTime = historyEndTime.replace( hour=23,minute=59, second=59, microsecond=999999)
                 usage, usage_start_time = account['vue'].get_chart_usage(chan, historyStartTime, historyEndTime, scale=Scale.DAY.value, unit=Unit.KWH.value)
@@ -212,13 +212,6 @@ def extractDataPoints(device, usageDataPoints, historyStartTime=None, historyEnd
                     index += 1
                 dayLoop = dayLoop -1
                 historyStartTime = historyStartTime + datetime.timedelta(days=26)
-                
-                
-                    
-            
-
-
-            
 
 startupTime = datetime.datetime.utcnow()
 try:
@@ -326,7 +319,7 @@ try:
 
                     if history:
                         for day in range(historyMinute):
-                            histLoop = "**********minute************"
+                            histLoop = "minute"
                             info('Loading historical data - Minutes: {} day(s) ago'.format(day+1))
                             #Extract second 12h of day
                             historyStartTime = stopTime - datetime.timedelta(seconds=3600*24*(day+1)-43200)
@@ -351,6 +344,7 @@ try:
                                 historyEndTime = stopTime 
                                 historyStartTime = historyStartTime.replace( hour=00, minute=00, second=00, microsecond=00)
                                 historyEndTime = historyEndTime.replace( hour=23,minute=59, second=59, microsecond=999999)
+                                print('time before call ',stopTime,historyStartTime ,historyEndTime )
                                 extractDataPoints(device, usageDataPoints, historyStartTime, historyEndTime, histLoop)
                             if not running:
                                 break
