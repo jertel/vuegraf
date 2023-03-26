@@ -6,15 +6,17 @@ Goal to add additional features to either be reveiwed/approved and merged back i
 Additional Features
 - [X] Reset config json file values to allow multiple runs without reseting database.
 -     [X] Database reset
--     [X} History Days
-- [ ] Add additional scales to the pull allowing to get years of history since minutes/second have a short life at emporia.
+-     [X] History Days
+- [X] Add additional scales to the pull allowing to get years of history since minutes/second have a short life at emporia.
 <br>    This also allows faster dashboards for creating itmes like daily or monthly graphs. 
--     [ ] Hours
--     [ ] Days
--     [ ] Months
+-   [X] Hours history and daily pull
+-   [X] Days history and daily pull
 - *Note while adding additional scales will keep seconds = true and minutes = false to not impact existing reporting.
 -   But add additonal tags for sec/min/hour/day/month
-
+- [ ] Add restart funactionality to :
+<br> * json parm to use below logic
+<br> * read last timestamp in influxdb
+<br> * on startup do history loop for gap in time (last timestamp -> now)
 
 # License 
 As this is a fork, will hour current license and all whishes of jertel's project.
