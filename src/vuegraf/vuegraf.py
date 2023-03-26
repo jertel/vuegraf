@@ -155,7 +155,7 @@ def extractDataPoints(device, usageDataPoints, historyStartTime=None, historyEnd
                 index += 1
         
         # fetches historical minute data
-        if histLoop == "minute" or collectSummaries:
+        if histLoop == "minute" :
             usage, usage_start_time = account['vue'].get_chart_usage(chan, historyStartTime, historyEndTime, scale=Scale.MINUTE.value, unit=Unit.KWH.value)
             index = 0
             for kwhUsage in usage:
@@ -166,17 +166,14 @@ def extractDataPoints(device, usageDataPoints, historyStartTime=None, historyEnd
                 usageDataPoints.append(createDataPoint(account, chanName, watts, timestamp, False))
         
                 index += 1
-        # fetches historical hour data
+        # fetches historical hour/day or just previous day
         if histLoop == "day-hour" or collectSummaries:
-
-            #Fetches historical hour data
             historyStartTime = stopTime - datetime.timedelta(days=historyDays)
             historyStartTime = historyStartTime.replace( hour=00, minute=00, second=00, microsecond=00)
+            #only used on history runs, otherwise is zero and will do next loop once.
             dayLoop = historyDays / 25
-            historyEndTime = historyStartTime + datetime.timedelta(days=25)
-            historyEndTime = historyEndTime.replace( hour=23,minute=59, second=59, microsecond=999999)
-            dayLoop = historyDays / 25
-            while dayLoop > 0  and historyStartTime < stopTime :
+            while dayLoop >= 0  and historyStartTime < stopTime :
+                #Fetches hour data
                 historyEndTime = min(stopTime, historyStartTime + datetime.timedelta(days=25))
                 historyEndTime = historyEndTime.replace( hour=23,minute=59, second=59, microsecond=999999)
                 usage, usage_start_time = account['vue'].get_chart_usage(chan, historyStartTime, historyEndTime, scale=Scale.HOUR.value, unit=Unit.KWH.value)
@@ -188,19 +185,7 @@ def extractDataPoints(device, usageDataPoints, historyStartTime=None, historyEnd
                     watts =   kwhUsage * 1000
                     usageDataPoints.append(createDataPoint(account, chanName, watts, timestamp, "Hour"))
                     index += 1
-                dayLoop = dayLoop -1
-                historyStartTime = historyStartTime + datetime.timedelta(days=26)
-
-            # fetches historical Day data
-            historyStartTime = stopTime - datetime.timedelta(days=historyDays)
-            historyStartTime = historyStartTime.replace( hour=00, minute=00, second=00, microsecond=00)
-            dayLoop = historyDays / 25
-            historyEndTime = historyStartTime + datetime.timedelta(days=25)
-            historyEndTime = historyEndTime.replace( hour=23,minute=59, second=59, microsecond=999999)
-            dayLoop = historyDays / 25
-            while dayLoop > 0  and historyStartTime < stopTime :
-                historyEndTime = min(stopTime, historyStartTime + datetime.timedelta(days=25))
-                historyEndTime = historyEndTime.replace( hour=23,minute=59, second=59, microsecond=999999)
+                #Fetches date data
                 usage, usage_start_time = account['vue'].get_chart_usage(chan, historyStartTime, historyEndTime, scale=Scale.DAY.value, unit=Unit.KWH.value)
                 index = 0
                 for kwhUsage in usage:
@@ -209,7 +194,7 @@ def extractDataPoints(device, usageDataPoints, historyStartTime=None, historyEnd
                     timestamp = usage_start_time + datetime.timedelta(days=index)
                     watts =   kwhUsage * 1000
                     usageDataPoints.append(createDataPoint(account, chanName, watts, timestamp, "Day"))
-                    index += 1
+                    index += 1 
                 dayLoop = dayLoop -1
                 historyStartTime = historyStartTime + datetime.timedelta(days=26)
 
@@ -257,7 +242,7 @@ try:
             start = "1970-01-01T00:00:00Z"
             stop = startupTime.isoformat(timespec='seconds')
             delete_api.delete(start, stop, '_measurement="energy_usage"', bucket=bucket, org=org)    
-            setconfig('influxDb','reset','false') 
+            setconfig('influxDb','reset',False) 
     else:
         info('Using InfluxDB version 1')
 
@@ -273,10 +258,11 @@ try:
 
         influx.create_database(config['influxDb']['database'])
 
+        print('RESET = ',config['influxDb']['reset'])
         if config['influxDb']['reset']:
             info('Resetting database')
             influx.delete_series(measurement='energy_usage')
-            setconfig('influxDb','reset','false') 
+            setconfig('influxDb','reset',False) 
 
     historyMinute = min(config['influxDb'].get('historyDays', 0), 7)
     historyDays = min(config['influxDb'].get('historyDays', 0), 720)
@@ -340,11 +326,6 @@ try:
                             histLoop = "day-hour"
                             info('Loading historical data - Days/Hours/Months: {} day(s) ago'.format(historyDays))   
                             for gid, device in usages.items():
-                                historyStartTime = stopTime - datetime.timedelta(seconds=3600*24*(historyDays))
-                                historyEndTime = stopTime 
-                                historyStartTime = historyStartTime.replace( hour=00, minute=00, second=00, microsecond=00)
-                                historyEndTime = historyEndTime.replace( hour=23,minute=59, second=59, microsecond=999999)
-                                print('time before call ',stopTime,historyStartTime ,historyEndTime )
                                 extractDataPoints(device, usageDataPoints, historyStartTime, historyEndTime, histLoop)
                             if not running:
                                 break
