@@ -1,5 +1,14 @@
 #!/usr/bin/env python3
 
+__author__ = 'https://github.com/jertel'
+__license__ = 'GPL'
+__contributors__ = 'https://github.com/jertel/vuegraf/graphs/contributors'
+__version__ = '1.6.0'
+__versiondate__ = '04/18/2023'
+__maintainer__ = 'https://github.com/jertel'
+__github__ = 'https://github.com/jertel/vuegraf'
+__status__ = 'Production'
+
 import datetime
 import json
 import signal
@@ -7,6 +16,7 @@ import sys
 import time
 import traceback
 from threading import Event
+import argparse
 
 # InfluxDB v1
 import influxdb
@@ -30,7 +40,7 @@ def error(msg):
     log("ERROR", msg)
 
 def handleExit(signum, frame):
-    global running
+    global runninga
     error('Caught exit signal')
     running = False
     pauseEvent.set()
@@ -39,16 +49,6 @@ def getConfigValue(key, defaultValue):
     if key in config:
         return config[key]
     return defaultValue
-
-# Reset config file if history or DB reset set
-# Allows sequential runs without lossing data 
-def setconfig(configname, configkey, configvalue) :
-    with open(configFilename, 'r') as newconfigFile:
-        newconfig = json.load(newconfigFile)
-    newconfig[configname][configkey] = configvalue
-    with open(configFilename, 'w') as configout:
-        json.dump(newconfig, configout, indent=4)
-    return()
 
 def populateDevices(account):
     deviceIdMap = {}
@@ -120,7 +120,7 @@ def createDataPoint(account, chanName, watts, timestamp, detailed):
         }
     return dataPoint
 
-def extractDataPoints(device, usageDataPoints, historyStartTime=None, historyEndTime=None, histLoop=None):
+def extractDataPoints(device, usageDataPoints, historyStartTime=None, historyEndTime=None):
     excludedDetailChannelNumbers = ['Balance', 'TotalUsage']
     minutesInAnHour = 60
     secondsInAMinute = 60
@@ -143,7 +143,6 @@ def extractDataPoints(device, usageDataPoints, historyStartTime=None, historyEnd
             continue
 
         if collectDetails:
-            #Seconds
             usage, usage_start_time = account['vue'].get_chart_usage(chan, detailedStartTime, stopTime, scale=Scale.SECOND.value, unit=Unit.KWH.value)
             index = 0
             for kwhUsage in usage:
@@ -155,59 +154,71 @@ def extractDataPoints(device, usageDataPoints, historyStartTime=None, historyEnd
                 index += 1
         
         # fetches historical minute data
-        if histLoop == "minute" :
+        if historyStartTime is not None and historyEndTime is not None:
             usage, usage_start_time = account['vue'].get_chart_usage(chan, historyStartTime, historyEndTime, scale=Scale.MINUTE.value, unit=Unit.KWH.value)
             index = 0
+            
+            
+            
+            
+            
+            
+            
             for kwhUsage in usage:
                 if kwhUsage is None:
                     continue
                 timestamp = historyStartTime + datetime.timedelta(minutes=index)
                 watts = float(minutesInAnHour * wattsInAKw) * kwhUsage
                 usageDataPoints.append(createDataPoint(account, chanName, watts, timestamp, False))
-        
                 index += 1
-        # fetches historical hour/day or just previous day
-        if histLoop == "day-hour" or collectSummaries:
-            historyStartTime = stopTime - datetime.timedelta(days=max(historyDays,1))
-            historyStartTime = historyStartTime.replace( hour=00, minute=00, second=00, microsecond=00)
-            #only used on history runs, otherwise is zero and will do next loop once.
-            dayLoop = historyDays / 25
-            while dayLoop >= 0  and historyStartTime < stopTime :
-                #Fetches hour data
-                historyEndTime = min(stopTime, historyStartTime + datetime.timedelta(days=25))
-                historyEndTime = historyEndTime.replace( hour=23,minute=59, second=59, microsecond=999999)
-                usage, usage_start_time = account['vue'].get_chart_usage(chan, historyStartTime, historyEndTime, scale=Scale.HOUR.value, unit=Unit.KWH.value)
-                index = 0
-                info('CollectSummaries; start="{}"; stop="{}"'.format(historyStartTime,historyEndTime ))
-                for kwhUsage in usage:
-                    if kwhUsage is None:
-                        continue
-                    timestamp = usage_start_time + datetime.timedelta(hours=index)
-                    watts =   kwhUsage * 1000
-                    usageDataPoints.append(createDataPoint(account, chanName, watts, timestamp, "Hour"))
-                    print(datetime.datetime.now, )
-                    index += 1
-                #Fetches date data
-                usage, usage_start_time = account['vue'].get_chart_usage(chan, historyStartTime, historyEndTime, scale=Scale.DAY.value, unit=Unit.KWH.value)
-                index = 0
-                for kwhUsage in usage:
-                    if kwhUsage is None:
-                        continue
-                    timestamp = usage_start_time + datetime.timedelta(days=index)
-                    watts =   kwhUsage * 1000
-                    usageDataPoints.append(createDataPoint(account, chanName, watts, timestamp, "Day"))
-                    index += 1 
-                dayLoop = dayLoop -1
-                historyStartTime = historyStartTime + datetime.timedelta(days=26)
+
 startupTime = datetime.datetime.utcnow()
 try:
-    if len(sys.argv) != 2:
-        print('Usage: python {} <config-file>'.format(sys.argv[0]))
-        sys.exit(1)
+    #argparse includes default -h / --help as command line input
+    parser = argparse.ArgumentParser(
+        prog='vuegraf.py',
+        description='Pulls data from Emporia AWS servers and loads it into a influx database (v1 or v2)',
+        epilog='For more information go to : ' + __github__
+        )
+    parser.add_argument(
+        "configFilename",
+        help='json config file',
+        type=str
+        )
+    parser.add_argument(
+        '--version',
+        help='display version number',
+        action='store_true')
+    parser.add_argument(
+        '-v',
+        '--verbose',
+        help='verbose output - summaries',
+        action='store_true')
+    parser.add_argument(
+        '-q',
+        '--quiet',
+        help='do not print anything but errors',
+        action='store_true')
+    parser.add_argument(
+        '--historydays',
+        help='Starts executin by pulling history of Hours and Day data for specified number of days.  example: --load-history-day 60',
+        type=int,
+        default=0
+        )
+    parser.add_argument(
+        '--resetdatabase',
+        action='store_true',
+        default=False,
+        help='Drop database and create a new one')
+    
+    args = parser.parse_args()
+    
+    if args.version:
+        print('vuegraf.py - version: ', __version__)
+        sys.exit(0) 
 
-    configFilename = sys.argv[1]
     config = {}
-    with open(configFilename) as configFile:
+    with open(args.configFilename) as configFile:
         config = json.load(configFile)
 
     influxVersion = 1
@@ -237,13 +248,12 @@ try:
         write_api = influx2.write_api(write_options=influxdb_client.client.write_api.SYNCHRONOUS)
         query_api = influx2.query_api()
 
-        if config['influxDb']['reset']:
+        with open(args.configFilename) as configFile:
             info('Resetting database')
             delete_api = influx2.delete_api()
             start = "1970-01-01T00:00:00Z"
             stop = startupTime.isoformat(timespec='seconds')
             delete_api.delete(start, stop, '_measurement="energy_usage"', bucket=bucket, org=org)    
-            setconfig('influxDb','reset',False) 
     else:
         info('Using InfluxDB version 1')
 
@@ -259,16 +269,12 @@ try:
 
         influx.create_database(config['influxDb']['database'])
 
-        print('RESET = ',config['influxDb']['reset'])
-        if config['influxDb']['reset']:
+        if args.resetdatabase:
             info('Resetting database')
             influx.delete_series(measurement='energy_usage')
-            setconfig('influxDb','reset',False) 
 
-    historyMinute = min(config['influxDb'].get('historyDays', 0), 7)
-    historyDays = min(config['influxDb'].get('historyDays', 0), 720)
+    historyDays = min(args.historydays, 720)
     history = historyDays > 0
-
     running = True
     signal.signal(signal.SIGINT, handleExit)
     signal.signal(signal.SIGHUP, handleExit)
@@ -276,20 +282,15 @@ try:
     intervalSecs=getConfigValue("updateIntervalSecs", 60)
     detailedIntervalSecs=getConfigValue("detailedIntervalSecs", 3600)
     detailedDataEnabled=getConfigValue("detailedDataEnabled", False)
-    summariesDataEnabled=getConfigValue('summariesDataEnabled', False)
-    info('Settings -> updateIntervalSecs: {}, detailedEnabled: {}, detailedIntervalSecs: {}, summariesEnabled {}'.format(intervalSecs, detailedDataEnabled, detailedIntervalSecs, summariesDataEnabled))
-    info(' History Days {}'.format(historyDays))
+    info('Settings -> updateIntervalSecs: {}, detailedEnabled: {}, detailedIntervalSecs: {}'.format(intervalSecs, detailedDataEnabled, detailedIntervalSecs))
     lagSecs=getConfigValue("lagSecs", 5)
     detailedStartTime = startupTime
-    #Only pull previous days Hourly and full day data and Full day after on next details loop after 00:05
-    summariesDate = datetime.datetime.now() + datetime.timedelta(days=1)
-    summariesDate = summariesDate.replace(hour=0, minute=5, second=00, microsecond=00)
-    info('Set collectSummaries; {}'.format(summariesDate))
+
     while running:
         now = datetime.datetime.utcnow()
         stopTime = now - datetime.timedelta(seconds=lagSecs)
         collectDetails = detailedDataEnabled and detailedIntervalSecs > 0 and (stopTime - detailedStartTime).total_seconds() >= detailedIntervalSecs
-        collectSummaries = summariesDataEnabled and datetime.datetime.now()  >= summariesDate
+
         for account in config["accounts"]:
             if 'vue' not in account:
                 account['vue'] = PyEmVue()
@@ -306,44 +307,32 @@ try:
                         extractDataPoints(device, usageDataPoints)
 
                     if history:
-                        for day in range(historyMinute):
-                            histLoop = "minute"
-                            info('Loading historical data - Minutes: {} day(s) ago'.format(day+1))
+                        for day in range(historyDays):
+                            info('Loading historical data: {} day(s) ago'.format(day+1))
                             #Extract second 12h of day
                             historyStartTime = stopTime - datetime.timedelta(seconds=3600*24*(day+1)-43200)
                             historyEndTime = stopTime - datetime.timedelta(seconds=(3600*24*(day)))
                             for gid, device in usages.items():
-                                extractDataPoints(device, usageDataPoints, historyStartTime, historyEndTime, histLoop)
+                                extractDataPoints(device, usageDataPoints, historyStartTime, historyEndTime)
                             pauseEvent.wait(5)
                             #Extract first 12h of day
                             historyStartTime = stopTime - datetime.timedelta(seconds=3600*24*(day+1))
                             historyEndTime = stopTime - datetime.timedelta(seconds=(3600*24*(day+1))-43200)
                             for gid, device in usages.items():
-                                extractDataPoints(device, usageDataPoints, historyStartTime, historyEndTime, histLoop)
-                            if not running:
-                                break
-                            pauseEvent.wait(5)
-
-                        if summariesDataEnabled:
-                            histLoop = "day-hour"
-                            info('Loading historical data - Days/Hours/Months: {} day(s) ago'.format(historyDays))   
-                            for gid, device in usages.items():
-                                extractDataPoints(device, usageDataPoints, historyStartTime, historyEndTime, histLoop)
+                                extractDataPoints(device, usageDataPoints, historyStartTime, historyEndTime)
                             if not running:
                                 break
                             pauseEvent.wait(5)
                         history = False
-                        setconfig('influxDb','historyDays', 0)
 
                     if not running:
                         break
 
-                    info('Submitting datapoints to database; account="{}"; points={}; Details="{}"; Summaries="{}"'.format(account['name'], 
-                                                            len(usageDataPoints),collectDetails, collectSummaries ))
+                    info('Submitting datapoints to database; account="{}"; points={}'.format(account['name'], len(usageDataPoints)))
                     if influxVersion == 2:
                         write_api.write(bucket=bucket, record=usageDataPoints)
                     else:
-                        influx.write_points(usageDataPoints,batch_size=5000)
+                        influx.write_points(usageDataPoints)
 
             except:
                 error('Failed to record new usage data: {}'.format(sys.exc_info())) 
@@ -351,15 +340,14 @@ try:
 
         if collectDetails:
             detailedStartTime = stopTime + datetime.timedelta(seconds=1)
-        if collectSummaries:
-            summariesDate = datetime.datetime.now() + datetime.timedelta(days=1)
-            summariesDate = summariesDate.replace(hour=0, minute=5, second=00, microsecond=00)
-            info('Reset collectSummaries; {}'.format(summariesDate))
         pauseEvent.wait(intervalSecs)
 
     info('Finished')
-except:
-    error('Fatal error: {}'.format(sys.exc_info())) 
-    traceback.print_exc()
-
-
+except SystemExit as e:
+    #Is sys.exit was 2, then normal syntax exit from help or bad command line, no error message
+    if e.code == 0 or e.code == 2:
+        quit(0)
+    else:
+        error('Fatal error: {}'.format(sys.exc_info())) 
+        traceback.print_exc()
+    
