@@ -40,7 +40,7 @@ def error(msg):
     log("ERROR", msg)
 
 def handleExit(signum, frame):
-    global runninga
+    global running
     error('Caught exit signal')
     running = False
     pauseEvent.set()
@@ -143,6 +143,7 @@ def extractDataPoints(device, usageDataPoints, historyStartTime=None, historyEnd
             continue
 
         if collectDetails:
+        #Seconds   
             usage, usage_start_time = account['vue'].get_chart_usage(chan, detailedStartTime, stopTime, scale=Scale.SECOND.value, unit=Unit.KWH.value)
             index = 0
             for kwhUsage in usage:
@@ -151,25 +152,32 @@ def extractDataPoints(device, usageDataPoints, historyStartTime=None, historyEnd
                 timestamp = detailedStartTime + datetime.timedelta(seconds=index)
                 watts = float(secondsInAMinute * minutesInAnHour * wattsInAKw) * kwhUsage
                 usageDataPoints.append(createDataPoint(account, chanName, watts, timestamp, True))
+                if args.verbose:
+                    info('Get Detailes (Seconds); start="{}"; stop="{}"'.format(detailedStartTime,stopTime ))
                 index += 1
         
         # fetches historical minute data
         if historyStartTime is not None and historyEndTime is not None:
-            usage, usage_start_time = account['vue'].get_chart_usage(chan, historyStartTime, historyEndTime, scale=Scale.MINUTE.value, unit=Unit.KWH.value)
-            index = 0
-            
-            
-            
-            
-            
-            
-            
+            #Hours
+            usage, usage_start_time = account['vue'].get_chart_usage(chan, historyStartTime, historyEndTime, scale=Scale.HOUR.value, unit=Unit.KWH.value)
+            index = 0            
             for kwhUsage in usage:
                 if kwhUsage is None:
                     continue
-                timestamp = historyStartTime + datetime.timedelta(minutes=index)
-                watts = float(minutesInAnHour * wattsInAKw) * kwhUsage
-                usageDataPoints.append(createDataPoint(account, chanName, watts, timestamp, False))
+                timestamp = historyStartTime + datetime.timedelta(hours=index)
+                watts =   kwhUsage * 1000
+                usageDataPoints.append(createDataPoint(account, chanName, watts, timestamp, "Hour"))
+                index += 1
+            #Days
+            usage, usage_start_time = account['vue'].get_chart_usage(chan, historyStartTime, historyEndTime, scale=Scale.DAY.value, unit=Unit.KWH.value)
+            index = 0            
+            for kwhUsage in usage:
+                if kwhUsage is None:
+                    continue
+                timestamp = historyStartTime + datetime.timedelta(days=index)
+                timestamp = timestamp.replace(hour=23, minute=59, second=59,microsecond=999999)
+                watts =   kwhUsage * 1000
+                usageDataPoints.append(createDataPoint(account, chanName, watts, timestamp, "Day"))
                 index += 1
 
 startupTime = datetime.datetime.utcnow()
@@ -307,21 +315,20 @@ try:
                         extractDataPoints(device, usageDataPoints)
 
                     if history:
-                        for day in range(historyDays):
-                            info('Loading historical data: {} day(s) ago'.format(day+1))
-                            #Extract second 12h of day
-                            historyStartTime = stopTime - datetime.timedelta(seconds=3600*24*(day+1)-43200)
-                            historyEndTime = stopTime - datetime.timedelta(seconds=(3600*24*(day)))
-                            for gid, device in usages.items():
-                                extractDataPoints(device, usageDataPoints, historyStartTime, historyEndTime)
-                            pauseEvent.wait(5)
-                            #Extract first 12h of day
-                            historyStartTime = stopTime - datetime.timedelta(seconds=3600*24*(day+1))
-                            historyEndTime = stopTime - datetime.timedelta(seconds=(3600*24*(day+1))-43200)
+                        info('Loading historical data: {} day(s) ago'.format(historyDays))
+                        historyStartTime = stopTime - datetime.timedelta(historyDays)
+                        historyStartTime = historyStartTime.replace(hour=00, minute=00, second=00, microsecond=000000)
+                        while historyStartTime <= stopTime:
+                            historyEndTime = min(historyStartTime  + datetime.timedelta(20), stopTime)
+                            historyEndTime = historyEndTime.replace(hour=23, minute=59, second=59,microsecond=999999)
+                            if args.verbose:
+                                info('    {}  -  {}'.format(historyStartTime,historyEndTime))
                             for gid, device in usages.items():
                                 extractDataPoints(device, usageDataPoints, historyStartTime, historyEndTime)
                             if not running:
                                 break
+                            historyStartTime = historyEndTime + datetime.timedelta(1)
+                            historyStartTime = historyStartTime.replace(hour=00, minute=00, second=00, microsecond=000000)
                             pauseEvent.wait(5)
                         history = False
 
@@ -332,7 +339,7 @@ try:
                     if influxVersion == 2:
                         write_api.write(bucket=bucket, record=usageDataPoints)
                     else:
-                        influx.write_points(usageDataPoints)
+                        influx.write_points(usageDataPoints,batch_size=5000)
 
             except:
                 error('Failed to record new usage data: {}'.format(sys.exc_info())) 
