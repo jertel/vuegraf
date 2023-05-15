@@ -220,7 +220,7 @@ try:
         action='store_true')
     parser.add_argument(
         '--historydays',
-        help='Starts executin by pulling history of Hours and Day data for specified number of days.  example: --load-history-day 60',
+        help='Starts executin by pulling history of Hours and Day data for specified number of days.  example: --historydays 60',
         type=int,
         default=0
         )
