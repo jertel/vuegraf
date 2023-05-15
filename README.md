@@ -137,8 +137,14 @@ Vuegraf can be run either as a container (recommended), or as a host process.
 
 A Docker container is provided at [hub.docker.com](https://hub.docker.com/r/jertel/vuegraf). Refer to the command below to launch Vuegraf as a container. This assumes you have created a folder called `/home/myuser/vuegraf` and placed the vuegraf.json file inside of it.
 
+Normal run with docker
 ```sh
 docker run --name vuegraf -d -v /home/myuser/vuegraf:/opt/vuegraf/conf jertel/vuegraf
+```
+
+Recreate database and load 25 days of history
+```sh
+docker run --name vuegraf -d -v /home/myuser/vuegraf:/opt/vuegraf/conf jertel/vuegraf --resetdatabase --historydays=24
 ```
 
 ## Host Process
@@ -165,22 +171,22 @@ or, on some Linux installations:
 python3 src/vuegraf/vuegraf.py vuegraf.json
 ```
 
-usage: vuegraf.py [-h] [--version] [-v] [-q] [--historydays HISTORYDAYS] [--resetdatabase] configFilename
-
-Pulls data from Emporia AWS servers and loads it into a influx database (v1 or v2)
-
-positional arguments:
-  configFilename        json config file
-
-options:
-  -h, --help            show this help message and exit
-  --version             display version number
-  -v, --verbose         verbose output - summaries
-  -q, --quiet           do not print anything but errors
-  --historydays HISTORYDAYS
-                        Starts executin by pulling history of Hours and Day data for specified number of days.
-                        example: --load-history-day 60
-  --resetdatabase       Drop database and create a new one
+Optional Command Line Parameters
+<br>usage: vuegraf.py [-h] [--version] [-v] [-q] [--historydays HISTORYDAYS] [--resetdatabase] configFilename
+<br>
+<br>Pulls data from Emporia AWS servers and loads it into a influx database (v1 or v2)
+<br>
+<br>positional arguments:
+<br>  configFilename        json config file
+<br>
+<br>options:
+<br>  -h, --help            show this help message and exit
+<br>  --version             display version number
+<br>  -v, --verbose         verbose output - summaries
+<br>  --historydays HISTORYDAYS
+<br>                        Starts executing by pulling history of Hours and Day data for specified number of days.
+<br>                        example: --load-history-day 60
+<br>  --resetdatabase       Drop database and create a new one
 
 
 
