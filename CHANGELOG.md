@@ -20,22 +20,22 @@
 - Hour data runs with the get details time, default is 1 hour (3600 seconds).  Based on when the program is started,
 you may be almost 2 hours behind for get hour.
 - Changed several one time parameters from the json config file to command line entries (History load days, reset database).
-<b> Example Command Line usage
-usage: vuegraf.py [-h] [--version] [-v] [-q] [--historydays HISTORYDAYS] [--resetdatabase] configFilename
+<br><br><b> Example Command Line usage </b>
+<br> vuegraf.py [-h] [--version] [-v] [-q] [--historydays HISTORYDAYS] [--resetdatabase] configFilename
 
-positional arguments:
-  configFilename        json config file
-
-options:
-  -h, --help            show this help message and exit
-  --version             display version number
-  -v, --verbose         verbose output - summaries
-  -q, --quiet           do not print anything but errors
-  --historydays HISTORYDAYS
-                        Starts executin by pulling history of Hours and Day data for specified number of days.
-                        example: --load-history-day 60
-  --resetdatabase       Drop database and create a new one
-
+positional arguments:<br>
+  configFilename        json config file<br>
+<br>
+<br>options:
+<br>  -h, --help            show this help message and exit
+<br>      --version             display version number
+<br>  -v, --verbose         verbose output - summaries
+<br>  -q, --quiet           do not print anything but errors
+<br>  --historydays HISTORYDAYS
+ <br> Starts executing by pulling history of Hours and Day data for specified number of days.
+ <br> example: --historydays 60
+ <br> --resetdatabase   Drop database and create a new one
+<br>
 ## Other changes
 - Started Changelog for this and future releases
 - Added project metadata to main program - vuegraf.py, values can be updated through github automations
