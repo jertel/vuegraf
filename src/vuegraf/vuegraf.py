@@ -149,7 +149,7 @@ def extractDataPoints(device, usageDataPoints, pointType=None, historyStartTime=
             continue
 
         if collectDetails:
-            #Seconds
+        #Seconds   
             usage, usage_start_time = account['vue'].get_chart_usage(chan, detailedStartTime, stopTime, scale=Scale.SECOND.value, unit=Unit.KWH.value)
             index = 0
             for kwhUsage in usage:
@@ -158,6 +158,8 @@ def extractDataPoints(device, usageDataPoints, pointType=None, historyStartTime=
                 timestamp = detailedStartTime + datetime.timedelta(seconds=index)
                 watts = float(secondsInAMinute * minutesInAnHour * wattsInAKw) * kwhUsage
                 usageDataPoints.append(createDataPoint(account, chanName, watts, timestamp, True))
+                if args.verbose:
+                    info('Get Detailes (Seconds); start="{}"; stop="{}"'.format(detailedStartTime,stopTime ))
                 index += 1
 
 
@@ -381,7 +383,6 @@ try:
 
         if collectDetails:
             detailedStartTime = stopTime + datetime.timedelta(seconds=1)
-
         pauseEvent.wait(intervalSecs)
 
     info('Finished')
