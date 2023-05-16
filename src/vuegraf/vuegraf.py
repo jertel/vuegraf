@@ -159,7 +159,7 @@ def extractDataPoints(device, usageDataPoints, pointType=None, historyStartTime=
                 watts = float(secondsInAMinute * minutesInAnHour * wattsInAKw) * kwhUsage
                 usageDataPoints.append(createDataPoint(account, chanName, watts, timestamp, True))
                 if args.verbose:
-                    info('Get Detailes (Seconds); start="{}"; stop="{}"'.format(detailedStartTime,stopTime ))
+                    info('Get Details (Seconds); start="{}"; stop="{}"'.format(detailedStartTime,stopTime ))
                 index += 1
 
 
@@ -196,8 +196,8 @@ try:
     #argparse includes default -h / --help as command line input
     parser = argparse.ArgumentParser(
         prog='vuegraf.py',
-        description='Pulls data from Emporia AWS servers and loads it into a influx database (v1 or v2)',
-        epilog='For more information go to : ' + __github__
+        description='Pulls data from cloud servers and loads it into an InfluxDB database',
+        epilog='For more information visit ' + __github__
         )
     parser.add_argument(
         'configFilename',
@@ -265,7 +265,7 @@ try:
         write_api = influx2.write_api(write_options=influxdb_client.client.write_api.SYNCHRONOUS)
         query_api = influx2.query_api()
 
-        with open(args.configFilename) as configFile:
+        if args.resetdatabase:
             info('Resetting database')
             delete_api = influx2.delete_api()
             start = '1970-01-01T00:00:00Z'
