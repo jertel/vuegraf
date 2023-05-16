@@ -87,11 +87,14 @@ The minimum configuration required to start Vuegraf is shown below.
 
 ### Ingesting Historical Data
 
-If desired, it is possible to have Vuegraf import historical data. To do so, run vuegraf.py with the option historydays parameter with a value between 1 and 720.  When ran, it will start by collection all hourly data points up to the specified parameter or max history stored at emporia.  It will also collect 1 Day data for each day storing it 23:59:59 for each day.  It collects the time using your local server time, but store it in influx on UTC.
+If desired, it is possible to have Vuegraf import historical data. To do so, run vuegraf.py with the optional `--historydays` parameter with a value between 1 and 720.  When this parameter is provided Vuegraf will start and collect all hourly data points up to the specified parameter, or max history available.  It will also collect one day's summary data for each day, storing it with the timestamp 23:59:59 for each day.  It collects the time using your local server time, but stores it in influxDB in UTC.
 
-IMPORTANT - If you restart Vuegraf with --historydays still on the command line (or in the dockerfile) it will _again_ import history data. This will likely cause confusion with your data since you will now have duplicate/overlapping data. For best results, only enable historydays single run, and then remove from your command line.
-<b>Example:</b>
+IMPORTANT - If you restart Vuegraf with `--historydays` on the command line (or forget to remove it from the dockerfile) it will import history data _again_. This will likely cause confusion with your data since you will now have duplicate/overlapping data. For best results, only enable `--historydays` on a single run.
+
+For Example:
+```
 python3 path/to/vuegraf.py vuegraf.json --historydays 365
+```
 
 ### Channel Names
 
@@ -172,24 +175,23 @@ python3 src/vuegraf/vuegraf.py vuegraf.json
 ```
 
 Optional Command Line Parameters
-<br>usage: vuegraf.py [-h] [--version] [-v] [-q] [--historydays HISTORYDAYS] [--resetdatabase] configFilename
-<br>
-<br>Pulls data from Emporia AWS servers and loads it into a influx database (v1 or v2)
-<br>
-<br>positional arguments:
-<br>  configFilename        json config file
-<br>
-<br>options:
-<br>  -h, --help            show this help message and exit
-<br>  --version             display version number
-<br>  -v, --verbose         verbose output - summaries
-<br>  --historydays HISTORYDAYS
-<br>                        Starts executing by pulling history of Hours and Day data for specified number of days.
-<br>                        example: --load-history-day 60
-<br>  --resetdatabase       Drop database and create a new one
+```
+usage: vuegraf.py [-h] [--version] [-v] [-q] [--historydays HISTORYDAYS] [--resetdatabase] configFilename
 
+Pulls data from Emporia AWS servers and loads it into a influx database (v1 or v2)
 
+positional arguments:
+  configFilename        json config file
 
+options:
+  -h, --help            Show this help message and exit
+  --version             Display version number
+  -v, --verbose         Verbose output - summaries
+  --historydays HISTORYDAYS
+                        Starts executing by pulling history of Hours and Day data for specified number of days.
+                        example: --load-history-day 60
+  --resetdatabase       Drop database and create a new one
+```
 
 ## Alerts
 
@@ -216,15 +218,15 @@ By default, Vuegraf will poll every minute to collect the energy usage value ove
 detailedDataEnabled: true
 ```
 
-For every datapoint a tag is stored in influx for the type of measurement
+For every datapoint a tag is stored in InfluxDB for the type of measurement
 
 - `detailed = True` represents backfilled per-second data that is optionally queried from Emporia once every hour.
 - `detailed = False` represents the per-minute average data that is collected every minute.
 - `detailed = Hour` represents the data summarized in hours
-- `detailed - Day` represents a single data point to summarize the entire day
+- `detailed = Day` represents a single data point to summarize the entire day
 
 When building graphs that show a sum of the energy usage, be sure to only include the correct detail tag, otherwise your summed values will be higher than expected. Detailed data will take more time for the graphs to query due to the extra data involved. If you want to have a chart that shows daily data over a long period or even a full year, use the `detailed = Day` tag.
-If you are running this on a small server, you might want to look at setting a RETENTION POLICY on influx to remove minute or second data over time. i.e. keep only 30 days fo second data. 
+If you are running this on a small server, you might want to look at setting a RETENTION POLICY on your InfluxDB bucket to remove minute or second data over time. For example, it will reduce storage needs if you retain only 30 days of per-_second_ data. 
 
 ## Vue Utility Connect Energy Monitor
 
