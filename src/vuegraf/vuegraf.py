@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 
 __author__ = 'https://github.com/jertel'
-__license__ = 'GPL'
+__license__ = 'MIT'
 __contributors__ = 'https://github.com/jertel/vuegraf/graphs/contributors'
 __version__ = '1.6.0'
-__versiondate__ = '04/18/2023'
+__versiondate__ = '2023/05/16'
 __maintainer__ = 'https://github.com/jertel'
 __github__ = 'https://github.com/jertel/vuegraf'
 __status__ = 'Production'
