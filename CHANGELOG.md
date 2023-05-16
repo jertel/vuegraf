@@ -25,7 +25,7 @@ Example Command Line usage
 vuegraf.py [-h] [--version] [-v] [-q] [--historydays HISTORYDAYS] [--resetdatabase] configFilename
 
 positional arguments:
-  configFilename        json config file<br>
+  configFilename        json config file
 
 options:
   -h, --help            Show this help message and exit
@@ -33,8 +33,8 @@ options:
   -v, --verbose         Verbose output - summaries
   -q, --quiet           Do not print anything but errors
   --historydays HISTORYDAYS
-    Starts executing by pulling history of Hours and Day data for specified number of days.
-    example: --historydays 60
+                        Starts executing by pulling history of Hours and Day data for specified number of days.
+                        example: --historydays 60
   --resetdatabase       Drop database and create a new one
 ```
 
