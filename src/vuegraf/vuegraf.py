@@ -289,7 +289,7 @@ try:
         if args.resetdatabase:
             info('Resetting database')
             influx.delete_series(measurement='energy_usage')
-    historyDays = 0
+
     historyDays = min(args.historydays, 720)
     history = historyDays > 0
     running = True
