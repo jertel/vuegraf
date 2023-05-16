@@ -206,21 +206,21 @@ try:
         )
     parser.add_argument(
         '--version',
-        help='display version number',
+        help='Display version number',
         action='store_true')
     parser.add_argument(
         '-v',
         '--verbose',
-        help='verbose output - summaries',
+        help='Verbose output - summaries',
         action='store_true')
     parser.add_argument(
         '-q',
         '--quiet',
-        help='do not print anything but errors',
+        help='Do not print anything but errors',
         action='store_true')
     parser.add_argument(
         '--historydays',
-        help='Starts executin by pulling history of Hours and Day data for specified number of days.  example: --historydays 60',
+        help='Starts execution by pulling history of Hours and Day data for specified number of days.  example: --historydays 60',
         type=int,
         default=0
         )
@@ -228,7 +228,7 @@ try:
         '--resetdatabase',
         action='store_true',
         default=False,
-        help='Drop database and create a new one')
+        help='Drop database and create a new one. USE WITH CAUTION - WILL RESULT IN COMPLETE VUEGRAF DATA LOSS!')
     args = parser.parse_args()
     if args.version:
         print('vuegraf.py - version: ', __version__)
