@@ -196,12 +196,12 @@ try:
     #argparse includes default -h / --help as command line input
     parser = argparse.ArgumentParser(
         prog='vuegraf.py',
-        description='Pulls data from cloud servers and loads it into an InfluxDB database',
-        epilog='For more information visit ' + __github__
+        description='Veugraf retrieves data from cloud servers and inserts it into an InfluxDB database.',
+        epilog='For more information visit: ' + __github__
         )
     parser.add_argument(
         'configFilename',
-        help='json config file',
+        help='JSON config file',
         type=str
         )
     parser.add_argument(
