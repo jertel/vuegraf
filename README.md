@@ -178,13 +178,13 @@ Optional Command Line Parameters
 ```
 usage: vuegraf.py [-h] [--version] [-v] [-q] [--historydays HISTORYDAYS] [--resetdatabase] configFilename
 
-Pulls data from Emporia AWS servers and loads it into a influx database (v1 or v2)
+Retrieves data from cloud servers and inserts it into an InfluxDB database.
 
 positional arguments:
-  configFilename        json config file
+  configFilename        JSON config file
 
 options:
-  -h, --help            Show this help message and exit
+  -h, --help            show this help message and exit
   --version             Display version number
   -v, --verbose         Verbose output - summaries
   --historydays HISTORYDAYS
