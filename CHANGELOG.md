@@ -32,4 +32,4 @@
     Whitespaces
     Extra lines
 
-With sppecial thanks to @gauthig for initiating these 1.6.0 changes!
+With special thanks to @gauthig for initiating these 1.6.0 changes!
