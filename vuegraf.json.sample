@@ -12,7 +12,6 @@
     },
     "updateIntervalSecs": 60,
     "detailedDataEnabled": "true",
-    "summariesDataEnabled": "false",
     "accounts": [
         {
             "name": "Primary Residence",
