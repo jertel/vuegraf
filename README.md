@@ -72,7 +72,6 @@ The minimum configuration required to start Vuegraf is shown below.
         "org": "vuegraf",
         "bucket": "vuegraf",
         "token": "<my-secret-token>",
-        "reset": false
     },
     "accounts": [
         {
@@ -88,9 +87,14 @@ The minimum configuration required to start Vuegraf is shown below.
 
 ### Ingesting Historical Data
 
-If desired, it is possible to have Vuegraf import historical data. To do so, specify a new temporary parameter called `historyDays` inside the `influxDb` section, with an integer value greater than zero. Once restarted, One-minute data from the past `historyDays` days will be ingested into InfluxDB. Emporia currently retains this data for 7 days, and therefore `historyDays` must be less than or equal to `7`. If `historyDays` is set to `0`, no historical data will be ingested into InfluxDB.
+If desired, it is possible to have Vuegraf import historical data. To do so, run vuegraf.py with the optional `--historydays` parameter with a value between 1 and 720.  When this parameter is provided Vuegraf will start and collect all hourly data points up to the specified parameter, or max history available.  It will also collect one day's summary data for each day, storing it with the timestamp 23:59:59 for each day.  It collects the time using your local server time, but stores it in influxDB in UTC.
 
-IMPORTANT - If you restart Vuegraf with historyDays still set to a non-zero value then it will _again_ import history data. This will likely cause confusion with your data since you will now have duplicate/overlapping data. For best results, only enable historyDays > 0 for a single run, and then immediately set it back to 0 to avoid this duplicated import data scenario.
+IMPORTANT - If you restart Vuegraf with `--historydays` on the command line (or forget to remove it from the dockerfile) it will import history data _again_. This will likely cause confusion with your data since you will now have duplicate/overlapping data. For best results, only enable `--historydays` on a single run.
+
+For Example:
+```
+python3 path/to/vuegraf.py vuegraf.json --historydays 365
+```
 
 ### Channel Names
 
@@ -136,8 +140,14 @@ Vuegraf can be run either as a container (recommended), or as a host process.
 
 A Docker container is provided at [hub.docker.com](https://hub.docker.com/r/jertel/vuegraf). Refer to the command below to launch Vuegraf as a container. This assumes you have created a folder called `/home/myuser/vuegraf` and placed the vuegraf.json file inside of it.
 
+Normal run with docker
 ```sh
 docker run --name vuegraf -d -v /home/myuser/vuegraf:/opt/vuegraf/conf jertel/vuegraf
+```
+
+Recreate database and load 25 days of history
+```sh
+docker run --name vuegraf -d -v /home/myuser/vuegraf:/opt/vuegraf/conf jertel/vuegraf --resetdatabase --historydays=24
 ```
 
 ## Host Process
@@ -164,6 +174,25 @@ or, on some Linux installations:
 python3 src/vuegraf/vuegraf.py vuegraf.json
 ```
 
+Optional Command Line Parameters
+```
+usage: vuegraf.py [-h] [--version] [-v] [-q] [--historydays HISTORYDAYS] [--resetdatabase] configFilename
+
+Retrieves data from cloud servers and inserts it into an InfluxDB database.
+
+positional arguments:
+  configFilename        JSON config file
+
+options:
+  -h, --help            show this help message and exit
+  --version             Display version number
+  -v, --verbose         Verbose output - summaries
+  --historydays HISTORYDAYS
+                        Starts executing by pulling history of Hours and Day data for specified number of days.
+                        example: --load-history-day 60
+  --resetdatabase       Drop database and create a new one
+```
+
 ## Alerts
 
 The included dashboard template contains two alerts which will trigger when either a power outage occurs, or a loss of Vuegraf data. There are various reasons why alerts can be helpful. See the below screenshots which help illustrate how a fully functioning alert and notification rule might look. Note that the included alerts do not send out notifications. To enable outbound notifactions, such as to Slack, you can create a Notification Endpoint and Notification Rule.
@@ -183,18 +212,21 @@ This notification rule provides an example of how you can have several alerts ch
 
 ## Per-second Data Details
 
-By default, Vuegraf will poll every minute to collect the energy usage value over the past 60 seconds. This results in a single value being capture per minute per channel, or 60 values per hour per channel. If you also would like to see per-second values, you can enable the detailed collection, which is polled once per hour, and backfilled over the previous 3600 seconds. This API call is very expensive on the Emporia servers, so it should not be polled more frequently than once per hour. To enable this detailed data, add (or update) the top-level `detailedDataEnabled` configuration value with a value of `true`.
+By default, Vuegraf will poll every minute to collect the energy usage value over the past 60 seconds. This results in a single value being capture per minute per channel, or 60 values per hour per channel. If you also would like to see per-second values, you can enable the detailed collection, which is polled once per hour, and backfilled over the previous 3600 seconds. This API call is very expensive on the Emporia servers, so it should not be polled more frequently than once per hour. To enable this detailed data, add (or update) the top-level `detailedDataEnabled` configuration value with a value of `true`.  The details is also what pulls the Hourly datapoint.  
 
 ```
 detailedDataEnabled: true
 ```
 
-Again:
+For every datapoint a tag is stored in InfluxDB for the type of measurement
 
 - `detailed = True` represents backfilled per-second data that is optionally queried from Emporia once every hour.
 - `detailed = False` represents the per-minute average data that is collected every minute.
+- `detailed = Hour` represents the data summarized in hours
+- `detailed = Day` represents a single data point to summarize the entire day
 
-When building graphs that show a sum of the energy usage, be sure to only include either detailed=true or detailed=false, otherwise your summed values will be higher than expected. Detailed data will take more time for the graphs to query due to the extra data involved. By default, it is set to False so most users can ignore this note.
+When building graphs that show a sum of the energy usage, be sure to only include the correct detail tag, otherwise your summed values will be higher than expected. Detailed data will take more time for the graphs to query due to the extra data involved. If you want to have a chart that shows daily data over a long period or even a full year, use the `detailed = Day` tag.
+If you are running this on a small server, you might want to look at setting a RETENTION POLICY on your InfluxDB bucket to remove minute or second data over time. For example, it will reduce storage needs if you retain only 30 days of per-_second_ data. 
 
 ## Vue Utility Connect Energy Monitor
 

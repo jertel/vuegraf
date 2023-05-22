@@ -8,8 +8,10 @@
         "reset": false,
         "ssl_enable": false,
         "ssl_verify": true
+
     },
     "updateIntervalSecs": 60,
+    "detailedDataEnabled": "true",
     "accounts": [
         {
             "name": "Primary Residence",
