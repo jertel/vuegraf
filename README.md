@@ -195,7 +195,7 @@ options:
 
 ## Alerts
 
-The included dashboard template contains two alerts which will trigger when either a power outage occurs, or a loss of Vuegraf data. There are various reasons why alerts can be helpful. See the below screenshots which help illustrate how a fully functioning alert and notification rule might look. Note that the included alerts do not send out notifications. To enable outbound notifactions, such as to Slack, you can create a Notification Endpoint and Notification Rule.
+The included dashboard template contains two alerts which will trigger when either a power outage occurs, or a loss of Vuegraf data. There are various reasons why alerts can be helpful. See the below screenshots which help illustrate how a fully functioning alert and notification rule might look. Note that the included alerts do not send out notifications. To enable outbound notifications, such as to Matrix or Slack, you can create a Notification Endpoint and Notification Rule.
 
 This alert was edited via the text (Flux) interface since the alert edit UI does not yet accommodate advanced alerting inputs.
 
@@ -207,6 +207,16 @@ This notification rule provides an example of how you can have several alerts ch
 
 ![Influx Notification Rule](https://github.com/jertel/vuegraf/blob/master/screenshots/notification_rule.png?raw=true "Influx Notification Rule")
 
+To send alerts to a Matrix chat room hosted on a Synapse server, use a [Hookshot bot](https://github.com/matrix-org/matrix-hookshot) with appropriate URL path routing (via a reverse proxy), and in InfluxDB, specify the Alert Endpoint as follows:
+- Destination: HTTP
+- HTTP Method: POST
+- Auth Method: None
+- URL: https://my-matrix-host.net/webhook/1234abcd-4321-1234-abcd-abcdef123456
+
+In the above example, /webhook/ routes to the Hookshot server. Then edit the Alert Notification Rule, and change the `body` variable assignment as follows:
+```
+body = {text: "🔴 ${r._notification_rule_name} -> ${r._check_name}"}
+```
 
 # Additional Topics
 
