@@ -1,34 +1,22 @@
 version: "3.5"
 services:
   influxdb: 
-     image: influxdb:1.8-alpine #InfluxDB v2 requires authentication so set to v1
+     image: influxdb
      container_name: influxdb
      ports:
        - 8086:8086
      volumes:
-      - influxdb-storage:/var/lib/influxdb
-  grafana:
-        image: grafana/grafana
-        container_name: grafana
-        depends_on:
-            - influxdb
-        ports:
-          - 3000:3000
-        volumes:
-          - grafana-storage:/var/lib/grafana
-          - ./grafana-provisioning/:/etc/grafana/provisioning
-        environment:
-          - GF_SECURITY_ADMIN_USER=admin
-          - GF_SECURITY_ADMIN_PASSWORD=admin
+       - influxdb-storage:/var/lib/influxdb2
+     environment:
+       - INFLUXD_SESSION_LENGTH=432000
+     restart: always
   vuegraf:
-        image: jertel/vuegraf
-        container_name: vuegraf
-        depends_on:
-            - influxdb
-        volumes:
-           - /home/myusername/vuegraf:/opt/vuegraf/conf #This assumes you have created a folder called vuegraf and placed the vuegraf.json file inside of it.
-        restart: always #This is necessary or vuegraf will not connect to InfluxDB, due to the fact that the call needs to wait. 
-                        #Similar could be done by adding 'sleep' in docker-compose-run.sh but requires separating the services into different yaml files.
+      image: jertel/vuegraf
+      container_name: vuegraf
+      depends_on:
+          - influxdb
+      volumes:
+         - /home/myusername/vuegraf:/opt/vuegraf/conf #This assumes you have created a folder called vuegraf and placed the vuegraf.json file inside of it.
+      restart: always
 volumes:
   influxdb-storage:
-  grafana-storage:
