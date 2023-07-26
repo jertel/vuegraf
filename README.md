@@ -35,13 +35,19 @@ Once logged in, go to the _Load Data -> API Tokens_ screen and generate a new Al
 
 ## Dashboard
 
-By default, a new InfluxDB instance will not have any dashboards loaded. You will need to import the included Influx JSON template, or create your own dashboard in order to visualize your energy usage.
+By default, a new InfluxDB instance will not have any dashboards loaded. You will need to import the included Influx JSON template, or create your own dashboard in order to visualize your energy usage. Because this template contains more than just the dashboard itself you will not be able to use the InfluxDB UI to perform the import. You will need to use the instructions included below.
 
 The included template file named `influx_dashboard.json` includes the provided dashboard and accompanying variables to reproduce the visualizations shown below. This dashboard assumes your main device name contains the word `Panel`, such as `House Panel`, or `Right Panel`. If it does not, the Flux queries will need to be adjusted manually to look for your device's name.
 
 ![Influx Dashboard Screenshot](https://github.com/jertel/vuegraf/blob/master/screenshots/influx_dashboard.png?raw=true "Influx Dashboard")
 
-You will need to apply this template file to your running InfluxDB instance. Copy the `influx_dashboard.json` file into your host's influxdb2 path. If you followed the Setup instructions above, the path would be `/home/myuser/influxdb2`. The below command can be used to perform this step. This command assumes you are running Influx in a container named `influxdb`.
+You will need to apply this template file to your running InfluxDB instance. First, copy the `influx_dashboard.json` file into your new InfluxDB container:
+
+```
+docker cp <path-to-vuegraf-project>/influx_dashboard.json influxdb:/var/lib/influxdb2/
+```
+
+Next, to import the dashboard, run the following command:
 
 ```
 docker exec influxdb influx apply -f /var/lib/influxdb2/influx_dashboard.json --org vuegraf --force yes -t <my-influx-token>
