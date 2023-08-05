@@ -1,14 +1,10 @@
 {
     "influxDb": {
-        "host": "my.influxdb.hostname",
-        "port": 8086,
-        "user": "root",
-        "pass": "root",
-        "database": "vue",
-        "reset": false,
-        "ssl_enable": false,
-        "ssl_verify": true
-
+        "version": 2,
+        "url": "http://my.influxdb.hostname:8086",
+        "org": "vuegraf",
+        "bucket": "vuegraf",
+        "token": "<my-secret-token>",
     },
     "updateIntervalSecs": 60,
     "detailedDataEnabled": "true",
