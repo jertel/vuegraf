@@ -4,7 +4,7 @@
         "url": "http://my.influxdb.hostname:8086",
         "org": "vuegraf",
         "bucket": "vuegraf",
-        "token": "<my-secret-token>",
+        "token": "<my-secret-token>"
     },
     "updateIntervalSecs": 60,
     "detailedDataEnabled": "true",
