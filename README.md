@@ -77,7 +77,7 @@ The minimum configuration required to start Vuegraf is shown below.
         "url": "http://my.influxdb.hostname:8086",
         "org": "vuegraf",
         "bucket": "vuegraf",
-        "token": "<my-secret-token>"
+        "token": "<my-influx-token>"
     },
     "accounts": [
         {
