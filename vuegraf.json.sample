@@ -7,7 +7,7 @@
         "token": "<my-secret-token>"
     },
     "updateIntervalSecs": 60,
-    "detailedDataEnabled": "true",
+    "detailedDataEnabled": true,
     "accounts": [
         {
             "name": "Primary Residence",
