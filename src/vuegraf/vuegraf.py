@@ -130,7 +130,7 @@ def extractDataPoints(device, usageDataPoints, pointType=None, historyStartTime=
     for chanNum, chan in device.channels.items():
         if chan.nested_devices:
             for gid, nestedDevice in chan.nested_devices.items():
-                extractDataPoints(nestedDevice, usageDataPoints, historyStartTime, historyEndTime)
+                extractDataPoints(nestedDevice, usageDataPoints, pointType, historyStartTime, historyEndTime)
 
         chanName = lookupChannelName(account, chan)
 
