@@ -31,7 +31,7 @@ from pyemvue.enums import Scale, Unit
 # flush=True helps when running in a container without a tty attached
 # (alternatively, "python -u" or PYTHONUNBUFFERED will help here)
 def log(level, msg):
-    now = datetime.datetime.utcnow()
+    now = datetime.datetime.now(datetime.UTC)
     print('{} | {} | {}'.format(now, level.ljust(5), msg), flush=True)
 
 def info(msg):
@@ -191,7 +191,7 @@ def extractDataPoints(device, usageDataPoints, pointType=None, historyStartTime=
                 usageDataPoints.append(createDataPoint(account, chanName, watts, timestamp, 'Day'))
                 index += 1
 
-startupTime = datetime.datetime.utcnow()
+startupTime = datetime.datetime.now(datetime.UTC)
 try:
     #argparse includes default -h / --help as command line input
     parser = argparse.ArgumentParser(
@@ -306,7 +306,7 @@ try:
     pastDay = pastDay.replace(hour=23, minute=59, second=59, microsecond=0)
 
     while running:
-        now = datetime.datetime.utcnow()
+        now = datetime.datetime.now(datetime.UTC)
         curDay = datetime.datetime.now()
         stopTime = now - datetime.timedelta(seconds=lagSecs)
         collectDetails = detailedDataEnabled and detailedIntervalSecs > 0 and (stopTime - detailedStartTime).total_seconds() >= detailedIntervalSecs
