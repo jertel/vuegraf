@@ -5,14 +5,14 @@ from setuptools import setup
 base_dir = os.path.dirname(__file__)
 setup(
     name='vuegraf',
-    version='1.6.0',
+    version='1.6.1',
     author='Jason Ertel',
     url='https://github.com/jertel/vuegraf',
     description='Populate metrics from your Emporia Vue energy monitoring devices into an InfluxDB',
     setup_requires='setuptools',
     license='MIT',
     classifiers=[
-        'Programming Language :: Python :: 3.9',
+        'Programming Language :: Python :: 3.12',
         'License :: OSI Approved :: MIT License',
         'Operating System :: OS Independent',
     ],
