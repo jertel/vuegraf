@@ -9,6 +9,21 @@
 ## Other changes
 - TBD
 
+# 1.6.1
+
+## Breaking changes
+
+- None
+
+## New features
+
+- None
+
+## Other changes
+
+- Upgrade to Python 3.12.1, replace deprecated datetime invocations - [#141](https://github.com/jertel/vuegraf/pull/141) - #jertel
+- Fixed extractDataPoints to recurse correctly for nested devices - [#140](https://github.com/jertel/vuegraf/pull/140) - #cdolghier
+
 # 1.6.0
 
 ## Breaking changes
