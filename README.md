@@ -249,7 +249,7 @@ detailedDataEnabled: true
 
 If `detailedDataEnabled` is set to `true`, the following two configuration fields become relevant. Notice that they are _not_ mutuall exclusive and are actually both set to `true` unless overridden:
 - `detailedDataSecondsEnabled` (default value is `true`): fetch and store per-second data every hour
-- `detailedDataSecondsEnabled` (default value is `true`): fetch and store per-hour data every hour
+- `detailedDataHoursEnabled` (default value is `true`): fetch and store per-hour data every hour
 
 For every datapoint a tag is stored in InfluxDB for the type of measurement
 
