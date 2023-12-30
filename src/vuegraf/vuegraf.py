@@ -302,6 +302,10 @@ try:
     detailedSecondsEnabled = detailedDataEnabled and getConfigValue('detailedDataSecondsEnabled', True)
     detailedHoursEnabled = detailedDataEnabled and getConfigValue('detailedDataHoursEnabled', True)
     info('Settings -> updateIntervalSecs: {}, detailedEnabled: {}, detailedIntervalSecs: {}'.format(intervalSecs, detailedDataEnabled, detailedIntervalSecs))
+    if detailedDataEnabled and not (detailedSecondsEnabled or detailedHoursEnabled):
+        error('detailedDataEnabled is set but none of [detailedSecondsEnabled, detailedHoursEnabled] is set. No detailed data will be collected')
+        detailedDataEnabled = False
+        
     lagSecs = getConfigValue('lagSecs', 5)
     accountTimeZoneName = getConfigValue('timezone', None)
     accountTimeZone = pytz.timezone(accountTimeZoneName) if accountTimeZoneName is not None and accountTimeZoneName.upper() != "TZ" else None
