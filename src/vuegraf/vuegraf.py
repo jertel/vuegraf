@@ -148,7 +148,7 @@ def extractDataPoints(device, usageDataPoints, pointType=None, historyStartTime=
         if chanNum in excludedDetailChannelNumbers:
             continue
 
-        if collectDetails:
+        if collectDetails and detailedSecondsEnabled:
         #Seconds   
             usage, usage_start_time = account['vue'].get_chart_usage(chan, detailedStartTime, stopTime, scale=Scale.SECOND.value, unit=Unit.KWH.value)
             index = 0
@@ -296,18 +296,23 @@ try:
     signal.signal(signal.SIGINT, handleExit)
     signal.signal(signal.SIGHUP, handleExit)
     pauseEvent = Event()
-    intervalSecs=getConfigValue('updateIntervalSecs', 60)
-    detailedIntervalSecs=getConfigValue('detailedIntervalSecs', 3600)
-    detailedDataEnabled=getConfigValue('detailedDataEnabled', False)
+    intervalSecs = getConfigValue('updateIntervalSecs', 60)
+    detailedIntervalSecs = getConfigValue('detailedIntervalSecs', 3600)
+    detailedDataEnabled = getConfigValue('detailedDataEnabled', False)
+    detailedSecondsEnabled = detailedDataEnabled and getConfigValue('detailedDataSecondsEnabled', True)
+    detailedHoursEnabled = detailedDataEnabled and getConfigValue('detailedDataHoursEnabled', True)
     info('Settings -> updateIntervalSecs: {}, detailedEnabled: {}, detailedIntervalSecs: {}'.format(intervalSecs, detailedDataEnabled, detailedIntervalSecs))
-    lagSecs=getConfigValue('lagSecs', 5)
+    lagSecs = getConfigValue('lagSecs', 5)
+    accountTimeZoneName = getConfigValue('timezone', None)
+    accountTimeZone = pytz.timezone(accountTimeZoneName) if accountTimeZoneName is not None and accountTimeZoneName.upper() != "TZ" else None
+    info('Settings -> timezone: {}'.format(accountTimeZone))
     detailedStartTime = startupTime
-    pastDay = datetime.datetime.now()
+    pastDay = datetime.datetime.now(accountTimeZone)
     pastDay = pastDay.replace(hour=23, minute=59, second=59, microsecond=0)
 
     while running:
         now = datetime.datetime.now(datetime.UTC)
-        curDay = datetime.datetime.now()
+        curDay = datetime.datetime.now(accountTimeZone)
         stopTime = now - datetime.timedelta(seconds=lagSecs)
         collectDetails = detailedDataEnabled and detailedIntervalSecs > 0 and (stopTime - detailedStartTime).total_seconds() >= detailedIntervalSecs
 
@@ -326,7 +331,7 @@ try:
                     for gid, device in usages.items():
                         extractDataPoints(device, usageDataPoints)
 
-                if collectDetails:
+                if collectDetails and detailedHoursEnabled:
                     pastHour = stopTime - datetime.timedelta(hours=1)
                     pastHour = pastHour.replace(minute=00, second=00,microsecond=0)
                     historyStartTime = pastHour
@@ -347,7 +352,7 @@ try:
                             extractDataPoints(device, usageDataPoints,'Day', historyStartTime)
                     if args.verbose:
                         info('Collected Previous Day: {}Local - {}UTC,  '.format(pastDay, historyStartTime))
-                    pastDay = datetime.datetime.now()
+                    pastDay = datetime.datetime.now(accountTimeZone)
                     pastDay = pastDay.replace(hour=23, minute=59, second=00, microsecond=0)
 
                 if history:
