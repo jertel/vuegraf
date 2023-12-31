@@ -91,9 +91,22 @@ The minimum configuration required to start Vuegraf is shown below.
 
 ## Advanced Configuration
 
+### Timezones
+All data is stored in InfluxDB in UTC. To represent day-summary datapoints, vuegraf fetches a day's data at the end of the day in a certain timezone, configured by the configuration field `timezone`.
+- if `timezone` is missing or null or its `upper()` is `"TZ"`, then the "default timezone" will be used
+  - the "default timezone" depends on the deployment method of the script
+    - If you are using Docker, the container has the timezone set to UTC unless the environment `TZ` is set.
+    - If you are running the script natively, it depends on your operating system. For example, in Ubuntu the timezone name is the contents of `/etc/timezone`
+- for all values of `timezone` other than the ones named above, the string **SHOULD** be a valid timezone name.
+
+The configured timezone is only relevant for collecting day-scoped data: the script fetches Emporia's "day to date" counter values, so if the account's timezone does not match the script one's, the last hours of the day will not be counted. For example, if your account is in the `America/Los_Angeles` timezone while the script runs its default UTC configuration in a Docker container, the daily summaries will miss the last 8 hours of every day.
+
+For a list of timezones as of late 2023, consult the `TZ identifier` column of the table at [this wikipedia page](https://en.wikipedia.org/wiki/List_of_tz_database_time_zones).
+
+
 ### Ingesting Historical Data
 
-If desired, it is possible to have Vuegraf import historical data. To do so, run vuegraf.py with the optional `--historydays` parameter with a value between 1 and 720.  When this parameter is provided Vuegraf will start and collect all hourly data points up to the specified parameter, or max history available.  It will also collect one day's summary data for each day, storing it with the timestamp 23:59:59 for each day.  It collects the time using your local server time, but stores it in influxDB in UTC.
+If desired, it is possible to have Vuegraf import historical data. To do so, run vuegraf.py with the optional `--historydays` parameter with a value between 1 and 720.  When this parameter is provided Vuegraf will start and collect all hourly data points up to the specified parameter, or max history available.  It will also collect one day's summary data for each day, storing it with the timestamp 23:59:59 for each day.  It collects the time using the configured timezone, but stores it in influxDB in UTC.
 
 IMPORTANT - If you restart Vuegraf with `--historydays` on the command line (or forget to remove it from the dockerfile) it will import history data _again_. This will likely cause confusion with your data since you will now have duplicate/overlapping data. For best results, only enable `--historydays` on a single run.
 
@@ -226,13 +239,17 @@ body = {text: "🔴 ${r._notification_rule_name} -> ${r._check_name}"}
 
 # Additional Topics
 
-## Per-second Data Details
+## Per-second and per-hour Data Details
 
-By default, Vuegraf will poll every minute to collect the energy usage value over the past 60 seconds. This results in a single value being capture per minute per channel, or 60 values per hour per channel. If you also would like to see per-second values, you can enable the detailed collection, which is polled once per hour, and backfilled over the previous 3600 seconds. This API call is very expensive on the Emporia servers, so it should not be polled more frequently than once per hour. To enable this detailed data, add (or update) the top-level `detailedDataEnabled` configuration value with a value of `true`.  The details is also what pulls the Hourly datapoint.  
+By default, Vuegraf will poll every minute to collect the energy usage value over the past 60 seconds. This results in a single value being captured per minute per channel, or 60 values per hour per channel. If you also would like to also fetch per-second and/or per-hour values, you can enable the detailed collection, which is polled once per hour, and backfilled over the previous 3600 seconds. This API call is very expensive on the Emporia servers, so it should not be polled more frequently than once per hour. To enable this detailed data, add (or update) the top-level `detailedDataEnabled` configuration value with a value of `true`.
 
 ```
 detailedDataEnabled: true
 ```
+
+If `detailedDataEnabled` is set to `true`, the following two configuration fields become relevant. Notice that they are _not_ mutuall exclusive and are actually both set to `true` unless overridden:
+- `detailedDataSecondsEnabled` (default value is `true`): fetch and store per-second data every hour
+- `detailedDataHoursEnabled` (default value is `true`): fetch and store per-hour data every hour
 
 For every datapoint a tag is stored in InfluxDB for the type of measurement
 

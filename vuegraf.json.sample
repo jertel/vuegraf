@@ -8,6 +8,9 @@
     },
     "updateIntervalSecs": 60,
     "detailedDataEnabled": true,
+    "detailedDataSecondsEnabled": true,
+    "detailedDataHoursEnabled": true,
+    "timezone": "TZ",
     "accounts": [
         {
             "name": "Primary Residence",
@@ -37,7 +40,7 @@
                         "Landscape Features",
                         "Septic Pump",
                         "Deep Freeze",
-                        "Sprinkler Pump"        
+                        "Sprinkler Pump"
                     ]
                 }
             ]
