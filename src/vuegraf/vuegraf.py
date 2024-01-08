@@ -269,7 +269,7 @@ try:
             info('Resetting database')
             delete_api = influx2.delete_api()
             start = '1970-01-01T00:00:00Z'
-            stop = startupTime.isoformat(timespec='seconds') + 'Z'
+            stop = startupTime.isoformat(timespec='seconds').replace("+00:00", "") + 'Z'
             delete_api.delete(start, stop, '_measurement="energy_usage"', bucket=bucket, org=org)
     else:
         info('Using InfluxDB version 1')
