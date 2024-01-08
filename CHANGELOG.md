@@ -8,7 +8,7 @@
 - Added `timezone` config to allow configuring the timezone according to which end-of-day is calculated.
 
 ## Other changes
-- TBD
+- Fixed `--resetdatabase` (broken in 1.6.1)
 
 # 1.6.1
 
