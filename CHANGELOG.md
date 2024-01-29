@@ -4,6 +4,17 @@
 - TBD
 
 ## New features
+- TBD
+
+## Other changes
+- TBD
+
+# 1.7.0
+
+## Breaking changes
+- None
+
+## New features
 - Added `detailedDataSecondsEnabled` and `detailedDataHoursEnabled` to selectively fetch one or (or both) seconds- and hours- resolution data iff `detailedDataEnabled` = `true`
 - Added `timezone` config to allow configuring the timezone according to which end-of-day is calculated.
 
