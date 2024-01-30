@@ -7,10 +7,17 @@ setup(
     name='vuegraf',
     version='1.7.0',
     author='Jason Ertel',
+    long_description=open('README.md').read(),
+    long_description_content_type="text/markdown",
     url='https://github.com/jertel/vuegraf',
     description='Populate metrics from your Emporia Vue energy monitoring devices into an InfluxDB',
     setup_requires='setuptools',
     license='MIT',
+    project_urls={
+        "Documentation": "https://github.com/jertel/vuegraf",
+        "Source Code": "https://github.com/jertel/vuegraf",
+        "Discussion Forum": "https://github.com/jertel/vuegraf/discussions",
+    },
     classifiers=[
         'Programming Language :: Python :: 3.12',
         'License :: OSI Approved :: MIT License',
