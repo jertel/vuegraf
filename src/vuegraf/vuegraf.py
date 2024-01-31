@@ -34,11 +34,19 @@ def log(level, msg):
     now = datetime.datetime.now(datetime.UTC)
     print('{} | {} | {}'.format(now, level.ljust(5), msg), flush=True)
 
-def info(msg):
-    log('INFO', msg)
+def debug(msg):
+    if args.debug:
+        log('DEBUG', msg)
 
 def error(msg):
     log('ERROR', msg)
+
+def info(msg):
+    log('INFO', msg)
+
+def verbose(msg):
+    if args.verbose:
+        log('VERB', msg)
 
 def handleExit(signum, frame):
     global running
@@ -121,6 +129,12 @@ def createDataPoint(account, chanName, watts, timestamp, detailed):
         }
     return dataPoint
 
+def dumpPoints(label, usageDataPoints):
+    if args.debug:
+        debug(label)
+        for point in usageDataPoints:
+            debug('  {}'.format(point.to_line_protocol()))
+
 def extractDataPoints(device, usageDataPoints, pointType=None, historyStartTime=None, historyEndTime=None):
     excludedDetailChannelNumbers = ['Balance', 'TotalUsage']
     minutesInAnHour = 60
@@ -149,7 +163,8 @@ def extractDataPoints(device, usageDataPoints, pointType=None, historyStartTime=
             continue
 
         if collectDetails and detailedSecondsEnabled:
-        #Seconds   
+            #Seconds   
+            verbose('Get Details (Seconds); start="{}"; stop="{}"'.format(detailedStartTime,stopTime ))
             usage, usage_start_time = account['vue'].get_chart_usage(chan, detailedStartTime, stopTime, scale=Scale.SECOND.value, unit=Unit.KWH.value)
             index = 0
             for kwhUsage in usage:
@@ -158,16 +173,13 @@ def extractDataPoints(device, usageDataPoints, pointType=None, historyStartTime=
                 timestamp = detailedStartTime + datetime.timedelta(seconds=index)
                 watts = float(secondsInAMinute * minutesInAnHour * wattsInAKw) * kwhUsage
                 usageDataPoints.append(createDataPoint(account, chanName, watts, timestamp, True))
-                if args.verbose:
-                    info('Get Details (Seconds); start="{}"; stop="{}"'.format(detailedStartTime,stopTime ))
                 index += 1
 
 
 
         # fetches historical minute data
         if historyStartTime is not None and historyEndTime is not None:
-            if args.verbose:
-                info('Hour-History - {} - start="{}" - stop="{}"'.format(chanName, historyStartTime,historyEndTime ))
+            verbose('Hour-History - {} - start="{}" - stop="{}"'.format(chanName, historyStartTime,historyEndTime ))
             #Hours
             usage, usage_start_time = account['vue'].get_chart_usage(chan, historyStartTime, historyEndTime, scale=Scale.HOUR.value, unit=Unit.KWH.value)
             index = 0
@@ -196,7 +208,7 @@ try:
     #argparse includes default -h / --help as command line input
     parser = argparse.ArgumentParser(
         prog='vuegraf.py',
-        description='Veugraf retrieves data from cloud servers and inserts it into an InfluxDB database.',
+        description='Veugraf retrieves energy usage data from commerical cloud servers and inserts it into a self-hosted InfluxDB database.',
         epilog='For more information visit: ' + __github__
         )
     parser.add_argument(
@@ -205,18 +217,14 @@ try:
         type=str
         )
     parser.add_argument(
-        '--version',
-        help='Display version number',
-        action='store_true')
-    parser.add_argument(
         '-v',
         '--verbose',
-        help='Verbose output - summaries',
+        help='Verbose output - shows collection of summary data',
         action='store_true')
     parser.add_argument(
-        '-q',
-        '--quiet',
-        help='Do not print anything but errors',
+        '-d',
+        '--debug',
+        help='Debug output - shows all point data being collected and written to the DB',
         action='store_true')
     parser.add_argument(
         '--historydays',
@@ -230,9 +238,7 @@ try:
         default=False,
         help='Drop database and create a new one. USE WITH CAUTION - WILL RESULT IN COMPLETE VUEGRAF DATA LOSS!')
     args = parser.parse_args()
-    if args.version:
-        print('vuegraf.py - version: ', __version__)
-        sys.exit(0)
+    info('Starting Vuegraf version {}'.format(__version__))
 
     config = {}
     with open(args.configFilename) as configFile:
@@ -301,7 +307,7 @@ try:
     detailedDataEnabled = getConfigValue('detailedDataEnabled', False)
     detailedSecondsEnabled = detailedDataEnabled and getConfigValue('detailedDataSecondsEnabled', True)
     detailedHoursEnabled = detailedDataEnabled and getConfigValue('detailedDataHoursEnabled', True)
-    info('Settings -> updateIntervalSecs: {}, detailedEnabled: {}, detailedIntervalSecs: {}'.format(intervalSecs, detailedDataEnabled, detailedIntervalSecs))
+    info('Settings -> updateIntervalSecs: {}, detailedDataEnabled: {}, detailedIntervalSecs: {}, detailedDataHoursEnabled: {}, detailedDataSecondsEnabled: {}'.format(intervalSecs, detailedDataEnabled, detailedIntervalSecs, detailedHoursEnabled, detailedSecondsEnabled))
         
     lagSecs = getConfigValue('lagSecs', 5)
     accountTimeZoneName = getConfigValue('timezone', None)
@@ -312,6 +318,7 @@ try:
     pastDay = pastDay.replace(hour=23, minute=59, second=59, microsecond=0)
 
     while running:
+        usageDataPoints = []
         now = datetime.datetime.now(datetime.UTC)
         curDay = datetime.datetime.now(accountTimeZone)
         stopTime = now - datetime.timedelta(seconds=lagSecs)
@@ -328,31 +335,26 @@ try:
                 deviceGids = list(account['deviceIdMap'].keys())
                 usages = account['vue'].get_device_list_usage(deviceGids, stopTime, scale=Scale.MINUTE.value, unit=Unit.KWH.value)
                 if usages is not None:
-                    usageDataPoints = []
                     for gid, device in usages.items():
                         extractDataPoints(device, usageDataPoints)
 
                 if collectDetails and detailedHoursEnabled:
                     pastHour = stopTime - datetime.timedelta(hours=1)
                     pastHour = pastHour.replace(minute=00, second=00,microsecond=0)
+                    verbose('Collecting previous hour: {} '.format(pastHour))
                     historyStartTime = pastHour
                     usages = account['vue'].get_device_list_usage(deviceGids, pastHour, scale=Scale.HOUR.value, unit=Unit.KWH.value)
                     if usages is not None:
-                        usageDataPoints = []
                         for gid, device in usages.items():
                             extractDataPoints(device, usageDataPoints, 'Hour', historyStartTime)
-                    if args.verbose:
-                        info('Collected Previous Hour: {} '.format(pastHour))
 
                 if pastDay.day < curDay.day:
                     usages = account['vue'].get_device_list_usage(deviceGids, pastDay, scale=Scale.DAY.value, unit=Unit.KWH.value)
                     historyStartTime = pastDay.astimezone(pytz.UTC)
+                    verbose('Collecting previous day: {}Local - {}UTC,  '.format(pastDay, historyStartTime))
                     if usages is not None:
-                        usageDataPoints = []
                         for gid, device in usages.items():
                             extractDataPoints(device, usageDataPoints,'Day', historyStartTime)
-                    if args.verbose:
-                        info('Collected Previous Day: {}Local - {}UTC,  '.format(pastDay, historyStartTime))
                     pastDay = datetime.datetime.now(accountTimeZone)
                     pastDay = pastDay.replace(hour=23, minute=59, second=00, microsecond=0)
 
@@ -363,8 +365,7 @@ try:
                     while historyStartTime <= stopTime:
                         historyEndTime = min(historyStartTime  + datetime.timedelta(20), stopTime)
                         historyEndTime = historyEndTime.replace(hour=23, minute=59, second=59,microsecond=0)
-                        if args.verbose:
-                            info('    {}  -  {}'.format(historyStartTime,historyEndTime))
+                        verbose('    {}  -  {}'.format(historyStartTime,historyEndTime))
                         for gid, device in usages.items():
                             extractDataPoints(device, usageDataPoints, 'History', historyStartTime, historyEndTime)
                         if not running:
@@ -378,6 +379,7 @@ try:
                     break
 
                 info('Submitting datapoints to database; account="{}"; points={}'.format(account['name'], len(usageDataPoints)))
+                dumpPoints("Sending to database", usageDataPoints)
                 if influxVersion == 2:
                     write_api.write(bucket=bucket, record=usageDataPoints)
                 else:

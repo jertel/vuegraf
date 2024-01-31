@@ -4,10 +4,15 @@
 - TBD
 
 ## New features
-- TBD
+- Added --debug arg to dump all points to console prior to sending to the database - @jertel
+- On startup the new detailedDataHousesEnabled and detailedDataSecondsEnabled values will be printed to console - @jertel
+- On startup the version will be printed to console - @jertel
 
 ## Other changes
-- TBD
+- Fixed issue when hourly and historic data was collected it was discard the previous minute data - @jertel
+- Removed unused --quiet arg - @jertel
+- Removed unnecessary --version arg - @jertel
+- Refactored --verbose flag to properly use logging level - @jertel
 
 # 1.7.0
 
@@ -33,8 +38,8 @@
 
 ## Other changes
 
-- Upgrade to Python 3.12.1, replace deprecated datetime invocations - [#141](https://github.com/jertel/vuegraf/pull/141) - #jertel
-- Fixed extractDataPoints to recurse correctly for nested devices - [#140](https://github.com/jertel/vuegraf/pull/140) - #cdolghier
+- Upgrade to Python 3.12.1, replace deprecated datetime invocations - [#141](https://github.com/jertel/vuegraf/pull/141) - @jertel
+- Fixed extractDataPoints to recurse correctly for nested devices - [#140](https://github.com/jertel/vuegraf/pull/140) - @cdolghier
 
 # 1.6.0
 
