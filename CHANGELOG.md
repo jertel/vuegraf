@@ -13,6 +13,7 @@
 - Removed unused --quiet arg - @jertel
 - Removed unnecessary --version arg - @jertel
 - Refactored --verbose flag to properly use logging level - @jertel
+- Removed unnecesary, duplicated queries - @jertel
 
 # 1.7.0
 

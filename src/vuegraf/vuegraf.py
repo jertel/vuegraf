@@ -162,9 +162,9 @@ def extractDataPoints(device, usageDataPoints, pointType=None, historyStartTime=
         if chanNum in excludedDetailChannelNumbers:
             continue
 
-        if collectDetails and detailedSecondsEnabled:
-            #Seconds   
-            verbose('Get Details (Seconds); start="{}"; stop="{}"'.format(detailedStartTime,stopTime ))
+        if collectDetails and detailedSecondsEnabled and historyStartTime is None:
+            # Collect seconds (once per hour, never during history collection)
+            verbose('Get second details; device="{}"; start="{}"; stop="{}"'.format(chanName, detailedStartTime, stopTime ))
             usage, usage_start_time = account['vue'].get_chart_usage(chan, detailedStartTime, stopTime, scale=Scale.SECOND.value, unit=Unit.KWH.value)
             index = 0
             for kwhUsage in usage:
@@ -175,11 +175,9 @@ def extractDataPoints(device, usageDataPoints, pointType=None, historyStartTime=
                 usageDataPoints.append(createDataPoint(account, chanName, watts, timestamp, True))
                 index += 1
 
-
-
         # fetches historical minute data
         if historyStartTime is not None and historyEndTime is not None:
-            verbose('Hour-History - {} - start="{}" - stop="{}"'.format(chanName, historyStartTime,historyEndTime ))
+            verbose('Get historic details; device="{}"; start="{}"; stop="{}"'.format(chanName, historyStartTime,historyEndTime ))
             #Hours
             usage, usage_start_time = account['vue'].get_chart_usage(chan, historyStartTime, historyEndTime, scale=Scale.HOUR.value, unit=Unit.KWH.value)
             index = 0
@@ -219,12 +217,12 @@ try:
     parser.add_argument(
         '-v',
         '--verbose',
-        help='Verbose output - shows collection of summary data',
+        help='Verbose output - shows additional collection information',
         action='store_true')
     parser.add_argument(
         '-d',
         '--debug',
-        help='Debug output - shows all point data being collected and written to the DB',
+        help='Debug output - shows all point data being collected and written to the DB (can be thousands of lines of output)',
         action='store_true')
     parser.add_argument(
         '--historydays',
@@ -322,7 +320,9 @@ try:
         now = datetime.datetime.now(datetime.UTC)
         curDay = datetime.datetime.now(accountTimeZone)
         stopTime = now - datetime.timedelta(seconds=lagSecs)
-        collectDetails = detailedDataEnabled and detailedIntervalSecs > 0 and (stopTime - detailedStartTime).total_seconds() >= detailedIntervalSecs
+        secondsSinceLastDetailCollection = (stopTime - detailedStartTime).total_seconds()
+        collectDetails = detailedDataEnabled and detailedIntervalSecs > 0 and secondsSinceLastDetailCollection >= detailedIntervalSecs
+        verbose('Starting next event collection; collectDetails={}; secondsSinceLastDetailCollection={}; detailedIntervalSecs={}'.format(collectDetails, secondsSinceLastDetailCollection, detailedIntervalSecs))
 
         for account in config['accounts']:
             if 'vue' not in account:
