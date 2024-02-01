@@ -4,11 +4,22 @@
 - TBD
 
 ## New features
+- TBD
+
+## Other changes
+
+# 1.7.1
+
+## Breaking changes
+- None
+
+## New features
+- None
+
+## Other changes
 - Added --debug arg to dump all points to console prior to sending to the database - @jertel
 - On startup the new detailedDataHousesEnabled and detailedDataSecondsEnabled values will be printed to console - @jertel
 - On startup the version will be printed to console - @jertel
-
-## Other changes
 - Fixed issue when hourly and historic data was collected it was discard the previous minute data - @jertel
 - Removed unused --quiet arg - @jertel
 - Removed unnecessary --version arg - @jertel
