@@ -37,7 +37,7 @@ Once logged in, go to the _Load Data -> API Tokens_ screen and generate a new Al
 
 By default, a new InfluxDB instance will not have any dashboards loaded. You will need to import the included Influx JSON template, or create your own dashboard in order to visualize your energy usage. Because this template contains more than just the dashboard itself you will not be able to use the InfluxDB UI to perform the import. You will need to use the instructions included below.
 
-The included template file named `influx_dashboard.json` includes the provided dashboard and accompanying variables to reproduce the visualizations shown below. This dashboard assumes your main device name contains the word `Panel`, such as `House Panel`, or `Right Panel`. If it does not, the Flux queries will need to be adjusted manually to look for your device's name.
+The included template file named `influx_dashboard.json` includes the provided dashboard and accompanying variables to reproduce the visualizations shown below. This dashboard assumes your main/parent device name contains the word `Panel` (specifically cased as shown), such as `House Panel`, or `Right Panel`. If it does not, the Flux queries will need to be adjusted manually to look for your device's name. Note that nested devices should contain the word `Subpanel` (again using that specific upper/lower casing).
 
 ![Influx Dashboard Screenshot](https://github.com/jertel/vuegraf/blob/master/screenshots/influx_dashboard.png?raw=true "Influx Dashboard")
 
