@@ -28,7 +28,8 @@ jobs:
           close-issue-message: "This issue was closed because it has been inactive for 14 days since being marked as stale."
           stale-pr-message: "This PR is stale because it has been open for 30 days with no activity."
           close-pr-message: "This PR was closed because it has been inactive for 14 days since being marked as stale."
-          exempt-issue-assignees: true
+          exempt-issue-assignees: 
+            - jertel
 
   lock-threads:
     runs-on: ubuntu-latest
