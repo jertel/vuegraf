@@ -1,0 +1,40 @@
+name: 'Lock Threads'
+
+on:
+  schedule:
+    - cron: '50 1 * * *'
+  workflow_dispatch:
+
+permissions:
+  issues: write
+  pull-requests: write
+  discussions: write
+
+concurrency:
+  group: lock-threads
+
+jobs:
+  close-threads:
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+      pull-requests: write
+    steps:
+      - uses: actions/stale@v5
+        with:
+          days-before-stale: 30
+          days-before-close: 14
+          stale-issue-message: "This issue is stale because it has been open for 30 days with no activity."
+          close-issue-message: "This issue was closed because it has been inactive for 14 days since being marked as stale."
+          stale-pr-message: "This PR is stale because it has been open for 30 days with no activity."
+          close-pr-message: "This PR was closed because it has been inactive for 14 days since being marked as stale."
+          exempt-issue-assignees: true
+
+  lock-threads:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: dessant/lock-threads@v5
+        with:
+          discussion-inactive-days: 14
+          issue-inactive-days: 30
+          pr-inactive-days: 60
