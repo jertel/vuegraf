@@ -34,7 +34,7 @@ jobs:
   lock-threads:
     runs-on: ubuntu-latest
     steps:
-      - uses: jertel/lock-threads
+      - uses: jertel/lock-threads@main
         with:
           include-discussion-currently-open: true
           discussion-inactive-days: 90
