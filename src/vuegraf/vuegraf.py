@@ -348,7 +348,7 @@ try:
                         for gid, device in usages.items():
                             extractDataPoints(device, usageDataPoints, 'Hour', historyStartTime)
 
-                if pastDay.day < curDay.day:
+                if pastDay.day != curDay.day:
                     usages = account['vue'].get_device_list_usage(deviceGids, pastDay, scale=Scale.DAY.value, unit=Unit.KWH.value)
                     historyStartTime = pastDay.astimezone(pytz.UTC)
                     verbose('Collecting previous day: {}Local - {}UTC,  '.format(pastDay, historyStartTime))
