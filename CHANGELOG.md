@@ -8,7 +8,7 @@
 
 ## Other changes
 - Fixed daily metric collection after a new month cycles - @cdolghier
-- Pin to old version of pycognito while awaiting new PyEmVue release - @jertel
+- Upgrade to pyemvue 0.18.1 - @jertel
 
 # 1.7.1
 
