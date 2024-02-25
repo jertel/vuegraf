@@ -7,6 +7,17 @@
 - TBD
 
 ## Other changes
+- TBD
+
+# 1.7.2
+
+## Breaking changes
+- None
+
+## New features
+- None
+
+## Other changes
 - Fixed daily metric collection after a new month cycles - @cdolghier
 - Upgrade to pyemvue 0.18.1 - @jertel
 
