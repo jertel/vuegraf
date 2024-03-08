@@ -29,8 +29,8 @@ setup(
     packages=find_packages(),
     install_requires=[
         'influxdb>=5.3.1',
-        'influxdb_client>=1.33.0',
-        'pyemvue>=0.18.1',
+        'influxdb_client>=1.41.0',
+        'pyemvue>=0.18.4',
         'argparse>= 1.4.0'
     ]
 )

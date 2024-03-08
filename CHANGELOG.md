@@ -7,7 +7,8 @@
 - TBD
 
 ## Other changes
-- TBD
+- Upgrade to pyemvue 0.18.4 - @jertel
+- Upgrade to influxdb_client 1.41.0 - @jertel
 
 # 1.7.2
 
