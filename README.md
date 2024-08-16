@@ -328,6 +328,21 @@ Login to the new Influx DB 2 UI from your web browser, using the _vuegraf / vueg
 
 Finally, apply the dashboard template as instructed earlier in this document.
 
+## Productionalizing the Server
+
+There are additional steps necessary for making this configuration fault tolerant. Consider implementing the following:
+
+- Configuring the container to always restart (such as after a reboot or a crash)
+- Backing up the InfluxDB on a frequent basis
+- Configure logging for rollover management, such as by file size or date
+- Configure OS alerts to an admin when detecting crashes of critical software, such as InfluxDB
+- Checking for low disk space on the host and alerting an admin
+- Setting up calendar reminders for host OS updates and associated kernel reboots
+- Updating Vuegraf and Influx on a schedule
+- Much more!
+
+These topics are out of scope of this project, but are intended to help new system administrators understand different areas that need to be considered for ensuring disaster recovery and prevention of vulnerabilities.
+ 
 # License
 
 Vuegraf is distributed under the MIT license.
