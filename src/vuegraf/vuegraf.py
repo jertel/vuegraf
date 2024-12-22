@@ -411,6 +411,7 @@ try:
     detailedStartTime = startupTime
     pastDay = datetime.datetime.now(accountTimeZone)
     pastDay = pastDay.replace(hour=23, minute=59, second=59, microsecond=0)
+    historyrun = history
 
     while running:
         usageDataPoints = []
@@ -484,7 +485,7 @@ try:
                 if not running:
                     break
 
-                if not History:
+                if not historyrun:
                     info('Submitting datapoints to database; account="{}"; points={}'.format(account['name'], len(usageDataPoints)))
                     dumpPoints("Sending to database", usageDataPoints)
                     if influxVersion == 2:
