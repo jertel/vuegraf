@@ -273,7 +273,7 @@ def extractDataPoints(device, usageDataPoints, pointType=None, historyStartTime=
             for kwhUsage in usage:
                 if kwhUsage is None:
                     continue
-                timestamp = usage_start_time.astimezone(accountTimeZone)
+                timestamp = usage_start_time.astimezone(accountTimeZone) + datetime.timedelta(days=index)
                 timestamp = timestamp.replace(hour=23, minute=59, second=59,microsecond=0)
                 timestamp = timestamp.astimezone(pytz.UTC)
                 watts =   kwhUsage * 1000
@@ -484,12 +484,13 @@ try:
                 if not running:
                     break
 
-                info('Submitting datapoints to database; account="{}"; points={}'.format(account['name'], len(usageDataPoints)))
-                dumpPoints("Sending to database", usageDataPoints)
-                if influxVersion == 2:
-                    write_api.write(bucket=bucket, record=usageDataPoints)
-                else:
-                    influx.write_points(usageDataPoints,batch_size=5000)
+                if not History:
+                    info('Submitting datapoints to database; account="{}"; points={}'.format(account['name'], len(usageDataPoints)))
+                    dumpPoints("Sending to database", usageDataPoints)
+                    if influxVersion == 2:
+                        write_api.write(bucket=bucket, record=usageDataPoints)
+                    else:
+                        influx.write_points(usageDataPoints,batch_size=5000)
 
             except:
                 error('Failed to record new usage data: {}'.format(sys.exc_info()))
