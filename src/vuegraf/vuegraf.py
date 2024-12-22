@@ -493,6 +493,10 @@ try:
                     else:
                         influx.write_points(usageDataPoints,batch_size=5000)
 
+                # Resuming logging of normal datapoints after history collection has completed.
+                if not history and historyrun:
+                    historyrun = False
+
             except:
                 error('Failed to record new usage data: {}'.format(sys.exc_info()))
                 traceback.print_exc()
