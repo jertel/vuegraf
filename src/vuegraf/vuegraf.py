@@ -377,10 +377,10 @@ try:
     tagName = 'detailed'
     if 'tagName' in config['influxDb']:
         tagName = config['influxDb']['tagName']
-    tagValue_second = True
+    tagValue_second = 'True'
     if 'tagValue_second' in config['influxDb']:
         tagValue_second = config['influxDb']['tagValue_second']
-    tagValue_minute = False
+    tagValue_minute = 'False'
     if 'tagValue_minute' in config['influxDb']:
         tagValue_minute = config['influxDb']['tagValue_minute']
     tagValue_hour = 'Hour'
