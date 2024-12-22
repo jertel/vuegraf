@@ -106,7 +106,12 @@ For a list of timezones as of late 2023, consult the `TZ identifier` column of t
 
 ### Ingesting Historical Data
 
-If desired, it is possible to have Vuegraf import historical data. To do so, run vuegraf.py with the optional `--historydays` parameter with a value between 1 and 720.  When this parameter is provided Vuegraf will start and collect all hourly data points up to the specified parameter, or max history available.  It will also collect one day's summary data for each day, storing it with the timestamp 23:59:59 for each day.  It collects the time using the configured timezone, but stores it in influxDB in UTC.
+If desired, it is possible to have Vuegraf import historical data. To do so, run vuegraf.py with the optional `--historydays` parameter with a value between 1 and 720 (configurable).  When this parameter is provided Vuegraf will start and collect all hourly data points up to the specified parameter, or max history available.  It will also collect one day's summary data for each day, storing it with the timestamp 23:59:59 for each day based on the configured timezone. It is possible to control the maximum number of days (default is 720) that the historical data can be collected by adding (or updating) the top-level `maxHistoryDays` configuration value with a numeric value.
+
+```
+maxHistoryDays: 720
+```
+
 
 IMPORTANT - If you restart Vuegraf with `--historydays` on the command line (or forget to remove it from the dockerfile) it will import history data _again_. This will likely cause confusion with your data since you will now have duplicate/overlapping data. For best results, only enable `--historydays` on a single run.
 
@@ -260,6 +265,39 @@ For every datapoint a tag is stored in InfluxDB for the type of measurement
 
 When building graphs that show a sum of the energy usage, be sure to only include the correct detail tag, otherwise your summed values will be higher than expected. Detailed data will take more time for the graphs to query due to the extra data involved. If you want to have a chart that shows daily data over a long period or even a full year, use the `detailed = Day` tag.
 If you are running this on a small server, you might want to look at setting a RETENTION POLICY on your InfluxDB bucket to remove minute or second data over time. For example, it will reduce storage needs if you retain only 30 days of per-_second_ data. 
+
+The name of the "detailed" tag as well as the associated tag values (True, False, Hour, Day) can be changed via the configuration file by providing the appropriate value within the InfluxDb section:
+
+- `tagName` will be name of the tag within the database. Default value is `detailed`
+- `tagValue_second` will be the value set for the tagName for the per-second data.  Default value is `True`
+- `tagValue_minute` will be the value set for the tagName for the per-minute data.  Default value is `False`
+- `tagValue_hour` will be the value set for the tagName for the per-hour data.  Default value is `Hour`
+- `tagValue_day` will be the value set for the tagName for the per-day data.  Default value is `Day`
+
+```json
+{
+    "influxDb": {
+        "version": 2,
+        "url": "http://my.influxdb.hostname:8086",
+        "org": "vuegraf",
+        "bucket": "vuegraf",
+        "token": "<my-influx-token>",
+        "tagName": "granularity",
+        "tagValue_second": "second",
+        "tagValue_minute": "minute",
+        "tagValue_hour": "hour",
+        "tagValue_day": "day"
+    },
+    "accounts": [
+        {
+            "name": "Primary Residence",
+            "email": "my@email.address",
+            "password": "my-emporia-password"
+        }
+    ]
+}
+```
+
 
 ## Vue Utility Connect Energy Monitor
 
