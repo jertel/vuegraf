@@ -158,13 +158,15 @@ def getLastDBTimeStamp(chanName, pointType, fooStartTime, fooStopTime, fooHistor
         if len(result) > 0:
             timeStr = next(result.get_points())['time']
 
+    # Depending on version of Influx, the string format for the time is different.  So strip out the variable timezone bits (along with any microsecond values)
     if len(timeStr) > 0:
-        timeStr = timeStr[:26]
+        timeStr = timeStr[:19]
+        # Now make the string timezone aware again by appending a 'Z' at the end
         if not timeStr.endswith('Z') and not timeStr[len(timeStr)-6] in ('+',"-"):
             timeStr = timeStr + 'Z'
-
+        
+        # Convert the timeStr into an aware datetime object.
         dbLastRecordTime = datetime.datetime.strptime(timeStr, '%Y-%m-%dT%H:%M:%S%z').replace(tzinfo=datetime.timezone.utc)
-        dbLastRecordTime = dbLastRecordTime.replace(microsecond=0)
 
         if pointType == tagValue_minute:
             if dbLastRecordTime < (fooStopTime - datetime.timedelta(minutes=2,seconds=fooStopTime.second)):
