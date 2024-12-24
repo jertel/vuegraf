@@ -456,7 +456,7 @@ try:
                         for gid, device in usages.items():
                             extractDataPoints(device, usageDataPoints,tagValue_day, historyStartTime)
                     pastDay = datetime.datetime.now(accountTimeZone)
-                    pastDay = pastDay.replace(hour=23, minute=59, second=00, microsecond=0)
+                    pastDay = pastDay.replace(hour=23, minute=59, second=59, microsecond=0)
 
                 if history:
                     stopTime = stopTime.astimezone(accountTimeZone)
