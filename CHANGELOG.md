@@ -7,8 +7,9 @@
 - Refactor and improve history and detailed data collection including consistent timezone usage - @cooldil
 
 ## Other changes
-- Upgrade to pyemvue 0.18.4 - @jertel
-- Upgrade to influxdb_client 1.41.0 - @jertel
+- Upgrade to pyemvue 0.18.6 - @jertel
+- Upgrade to influxdb_client 1.48.0 - @jertel
+- Upgrade to influxdb 5.3.2 - @jertel
 
 # 1.7.2
 
