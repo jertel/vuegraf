@@ -4,7 +4,7 @@ __author__ = 'https://github.com/jertel'
 __license__ = 'MIT'
 __contributors__ = 'https://github.com/jertel/vuegraf/graphs/contributors'
 __version__ = '1.7.2'
-__versiondate__ = '2024/12/21'
+__versiondate__ = '2025/01/12'
 __maintainer__ = 'https://github.com/jertel'
 __github__ = 'https://github.com/jertel/vuegraf'
 __status__ = 'Production'
@@ -172,8 +172,10 @@ def getLastDBTimeStamp(chanName, pointType, fooStartTime, fooStopTime, fooHistor
             if dbLastRecordTime < (fooStopTime - datetime.timedelta(minutes=2,seconds=fooStopTime.second)):
                 fooHistoryFlag = True
                 fooStartTime = dbLastRecordTime + datetime.timedelta(minutes=1)
+                # Can only back a maximum of 7 days for minute data.  So if last record in DB exceeds 7 days, set the startTime to be 7 days ago.
                 if int((fooStopTime - fooStartTime).total_seconds()) > 604800:      # 7 Days
                     fooStartTime = fooStopTime - datetime.timedelta(minutes=10080)  # 7 Days
+                # Can only get a maximum of 12 hours worth of minute data in a single API call.  If more than 12 hours worth is needed, get data in batches; set stopTime to be 12 hours more than the starttime
                 if int((fooStopTime - fooStartTime).total_seconds()) > 43200:       # 12 Hours
                     fooStopTime = fooStartTime + datetime.timedelta(minutes=720)    # 12 Hours
 
@@ -181,10 +183,18 @@ def getLastDBTimeStamp(chanName, pointType, fooStartTime, fooStopTime, fooHistor
             if dbLastRecordTime < (fooStartTime - datetime.timedelta(seconds=2)):
                 fooHistoryFlag = True
                 fooStartTime = (dbLastRecordTime + datetime.timedelta(seconds=1)).replace(microsecond=0)
-                if int((fooStopTime - fooStartTime).total_seconds()) > 10800:        # 3 Hours
-                    fooStartTime = fooStopTime - datetime.timedelta(seconds=10800)   # 3 Hours
-                if int((fooStopTime - fooStartTime).total_seconds()) > 3600:         # 1 Hour
-                    fooStopTime = fooStartTime + datetime.timedelta(seconds=3600) # 1 Hour
+                # Adjust start or stop times if backfill interval exceeds 1 hour
+                if (int((fooStopTime - fooStartTime).total_seconds()) > 3600):
+                    # Can never get more than 1 hour of historical second data if detailedIntervalSecs is set to 1 hour or greater.  Set backfill period to be just the past one hour in that case.
+                    if (detailedIntervalSecs >= 3600):
+                        fooStartTime = fooStopTime - datetime.timedelta(seconds=3600)   # 1 Hour max since detailedIntervalSecs is 1 hour or more
+                    else:
+                        # Can only backfill a maximum of 3 hours for second data.  So if last record in DB exceeds 3 hours, set the startTime to be 3 hours ago.
+                        if int((fooStopTime - fooStartTime).total_seconds()) > 10800:        # 3 Hours
+                            fooStartTime = fooStopTime - datetime.timedelta(seconds=10800)   # 3 Hours
+                        # Can only get a maximum of 1 hour's worth of second data in a single API call.  If more than 1 hour's worth is needed, get data in batches; set stopTime to be 1 hour more than the starttime
+                        if int((fooStopTime - fooStartTime).total_seconds()) > 3600:         # 1 Hour
+                            fooStopTime = fooStartTime + datetime.timedelta(seconds=3600)    # 1 Hour
     else:
         if pointType == tagValue_minute:
             fooStartTime = fooStartTime - datetime.timedelta(days=7)
@@ -219,19 +229,36 @@ def extractDataPoints(device, usageDataPoints, pointType=None, historyStartTime=
                     timestamp = stopTime.replace(second=0)
                     usageDataPoints.append(createDataPoint(account, chanName, watts, timestamp, tagValue_minute))
                 elif chanNum not in excludedDetailChannelNumbers and historyStartTime is None:
-                    # Collect minutes history (if neccessary, never during history collection)
-                    info('Get minute details; device="{}"; start="{}"; stop="{}"'.format(chanName, minuteHistoryStartTime, stopTimeMin))
-                    usage, usage_start_time = account['vue'].get_chart_usage(chan, minuteHistoryStartTime, stopTimeMin, scale=Scale.MINUTE.value, unit=Unit.KWH.value)
-                    usage_start_time = usage_start_time.replace(second=0,microsecond=0)
-                    index = 0
-                    for kwhUsage in usage:
-                        if kwhUsage is None:
-                            continue
-                        timestamp = usage_start_time + datetime.timedelta(minutes=index)
-                        watts = float(minutesInAnHour * wattsInAKw) * kwhUsage
-                        usageDataPoints.append(createDataPoint(account, chanName, watts, timestamp, tagValue_minute))
-                        index += 1
-                    minuteHistoryEnabled = False
+                    noDataFlag = True
+                    while noDataFlag:
+                        # Collect minutes history (if neccessary, never during history collection)
+                        info('Get minute details; device="{}"; start="{}"; stop="{}"'.format(chanName, minuteHistoryStartTime, stopTimeMin))
+                        usage, usage_start_time = account['vue'].get_chart_usage(chan, minuteHistoryStartTime, stopTimeMin, scale=Scale.MINUTE.value, unit=Unit.KWH.value)
+                        usage_start_time = usage_start_time.replace(second=0,microsecond=0)
+                        index = 0
+                        for kwhUsage in usage:
+                            if kwhUsage is None:
+                                index += 1
+                                continue
+                            noDataFlag = False  # Got at least one datapoint.  Set boolean value so we don't loop back
+                            timestamp = usage_start_time + datetime.timedelta(minutes=index)
+                            watts = float(minutesInAnHour * wattsInAKw) * kwhUsage
+                            usageDataPoints.append(createDataPoint(account, chanName, watts, timestamp, tagValue_minute))
+                            index += 1
+                        if noDataFlag: 
+                            # Opps!  No data points found for the time interval in question ('None' returned for ALL values)
+                            # Move up the time interval to the next "batch" timeframe
+                            if stopTimeMin < stopTime.replace(second=0, microsecond=0):
+                                fooCurrentInterval = int((stopTimeMin - minuteHistoryStartTime).total_seconds())
+                                minuteHistoryStartTime = minuteHistoryStartTime + datetime.timedelta(seconds=fooCurrentInterval)
+                                # Make sure we don't go beyond the global stopTime
+                                minuteHistoryStartTime = min(minuteHistoryStartTime, stopTime.replace(second=0,microsecond=0))
+                                stopTimeMin = stopTimeMin + datetime.timedelta(seconds=fooCurrentInterval)
+                                # Make sure we don't go beyond the global stopTime
+                                stopTimeMin = min(stopTimeMin, stopTime.replace(second=0, microsecond=0))
+                            else: # Time to break out of the loop; looks like the device in question is offline 
+                                noDataFlag = False
+                        minuteHistoryEnabled = False
             elif pointType == tagValue_day or pointType == tagValue_hour :
                 watts = kwhUsage * 1000
                 timestamp = historyStartTime
@@ -249,6 +276,7 @@ def extractDataPoints(device, usageDataPoints, pointType=None, historyStartTime=
             index = 0
             for kwhUsage in usage:
                 if kwhUsage is None:
+                    index += 1
                     continue
                 timestamp = usage_start_time + datetime.timedelta(seconds=index)
                 watts = float(secondsInAMinute * minutesInAnHour * wattsInAKw) * kwhUsage
@@ -264,6 +292,7 @@ def extractDataPoints(device, usageDataPoints, pointType=None, historyStartTime=
             index = 0
             for kwhUsage in usage:
                 if kwhUsage is None:
+                    index += 1
                     continue
                 timestamp = usage_start_time + datetime.timedelta(hours=index)
                 watts = kwhUsage * 1000
@@ -274,6 +303,7 @@ def extractDataPoints(device, usageDataPoints, pointType=None, historyStartTime=
             index = 0
             for kwhUsage in usage:
                 if kwhUsage is None:
+                    index += 1
                     continue
                 timestamp = usage_start_time.astimezone(accountTimeZone) + datetime.timedelta(days=index)
                 timestamp = timestamp.replace(hour=23, minute=59, second=59,microsecond=0)
