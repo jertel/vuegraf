@@ -106,11 +106,12 @@ def lookupChannelName(account, chan):
 
     return name
 
-def createDataPoint(account, chanName, watts, timestamp, detailed):
+def createDataPoint(accountName, deviceName, chanName, watts, timestamp, detailed):
     dataPoint = None
     if influxVersion == 2:
         dataPoint = influxdb_client.Point('energy_usage') \
-            .tag('account_name', account['name']) \
+            .tag('account_name', accountName) \
+            .tag('station_name', deviceName) \
             .tag('device_name', chanName) \
             .tag(tagName, detailed) \
             .field('usage', watts) \
@@ -119,7 +120,8 @@ def createDataPoint(account, chanName, watts, timestamp, detailed):
         dataPoint = {
             'measurement': 'energy_usage',
             'tags': {
-                'account_name': account['name'],
+                'account_name': accountName,
+                'station_name': deviceName,
                 'device_name': chanName,
                 tagName: detailed,
             },
@@ -216,6 +218,8 @@ def extractDataPoints(device, usageDataPoints, pointType=None, historyStartTime=
     minutesInAnHour = 60
     secondsInAMinute = 60
     wattsInAKw = 1000
+    deviceName = lookupDeviceName(account, device.device_gid)
+    accountName = account['name']
 
     for chanNum, chan in device.channels.items():
         if chan.nested_devices:
@@ -231,7 +235,7 @@ def extractDataPoints(device, usageDataPoints, pointType=None, historyStartTime=
                 if not minuteHistoryEnabled or chanNum in excludedDetailChannelNumbers:
                     watts = float(minutesInAnHour * wattsInAKw) * kwhUsage
                     timestamp = stopTime.replace(second=0)
-                    usageDataPoints.append(createDataPoint(account, chanName, watts, timestamp, tagValue_minute))
+                    usageDataPoints.append(createDataPoint(accountName, deviceName, chanName, watts, timestamp, tagValue_minute))
                 elif chanNum not in excludedDetailChannelNumbers and historyStartTime is None:
                     noDataFlag = True
                     while noDataFlag:
@@ -247,7 +251,7 @@ def extractDataPoints(device, usageDataPoints, pointType=None, historyStartTime=
                             noDataFlag = False  # Got at least one datapoint.  Set boolean value so we don't loop back
                             timestamp = usage_start_time + datetime.timedelta(minutes=index)
                             watts = float(minutesInAnHour * wattsInAKw) * kwhUsage
-                            usageDataPoints.append(createDataPoint(account, chanName, watts, timestamp, tagValue_minute))
+                            usageDataPoints.append(createDataPoint(accountName, deviceName, chanName, watts, timestamp, tagValue_minute))
                             index += 1
                         if noDataFlag: 
                             # Opps!  No data points found for the time interval in question ('None' returned for ALL values)
@@ -266,7 +270,7 @@ def extractDataPoints(device, usageDataPoints, pointType=None, historyStartTime=
             elif pointType == tagValue_day or pointType == tagValue_hour :
                 watts = kwhUsage * 1000
                 timestamp = historyStartTime
-                usageDataPoints.append(createDataPoint(account, chanName, watts, timestamp, pointType))
+                usageDataPoints.append(createDataPoint(accountName, deviceName, chanName, watts, timestamp, pointType))
 
         if chanNum in excludedDetailChannelNumbers:
             continue
