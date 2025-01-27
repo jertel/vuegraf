@@ -284,7 +284,7 @@ def extractDataPoints(device, usageDataPoints, pointType=None, historyStartTime=
                     continue
                 timestamp = usage_start_time + datetime.timedelta(seconds=index)
                 watts = float(secondsInAMinute * minutesInAnHour * wattsInAKw) * kwhUsage
-                usageDataPoints.append(createDataPoint(account, chanName, watts, timestamp, tagValue_second))
+                usageDataPoints.append(createDataPoint(accountName, deviceName, chanName, watts, timestamp, tagValue_second))
                 index += 1
 
         # fetches historical Hour & Day data
@@ -300,7 +300,7 @@ def extractDataPoints(device, usageDataPoints, pointType=None, historyStartTime=
                     continue
                 timestamp = usage_start_time + datetime.timedelta(hours=index)
                 watts = kwhUsage * 1000
-                usageDataPoints.append(createDataPoint(account, chanName, watts, timestamp, tagValue_hour))
+                usageDataPoints.append(createDataPoint(accountName, deviceName, chanName, watts, timestamp, tagValue_hour))
                 index += 1
             #Days
             usage, usage_start_time = account['vue'].get_chart_usage(chan, historyStartTime, historyEndTime, scale=Scale.DAY.value, unit=Unit.KWH.value)
@@ -313,7 +313,7 @@ def extractDataPoints(device, usageDataPoints, pointType=None, historyStartTime=
                 timestamp = timestamp.replace(hour=23, minute=59, second=59,microsecond=0)
                 timestamp = timestamp.astimezone(pytz.UTC)
                 watts =   kwhUsage * 1000
-                usageDataPoints.append(createDataPoint(account, chanName, watts, timestamp, tagValue_day))
+                usageDataPoints.append(createDataPoint(accountName, deviceName, chanName, watts, timestamp, tagValue_day))
                 index += 1
 
 startupTime = datetime.datetime.now(datetime.UTC).replace(microsecond=0)
