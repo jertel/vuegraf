@@ -18,6 +18,7 @@ import traceback
 from threading import Event
 import argparse
 import pytz
+import pprint
 
 # InfluxDB v1
 import influxdb
@@ -135,7 +136,10 @@ def dumpPoints(label, usageDataPoints):
     if args.debug:
         debug(label)
         for point in usageDataPoints:
-            debug('  {}'.format(point.to_line_protocol()))
+            if influxVersion == 2:
+                debug('  {}'.format(point.to_line_protocol()))
+            else:
+                debug(f'  {pprint.pformat(point)}')
 
 def getLastDBTimeStamp(chanName, pointType, fooStartTime, fooStopTime, fooHistoryFlag):
     timeStr = ''
@@ -350,6 +354,12 @@ try:
         action='store_true',
         default=False,
         help='Drop database and create a new one. USE WITH CAUTION - WILL RESULT IN COMPLETE VUEGRAF DATA LOSS!')
+    parser.add_argument(
+        '--dryrun',
+        help='Read from the API and process the data, but do not write to influxdb',
+        action='store_true',
+        default=False
+        )
     args = parser.parse_args()
     info('Starting Vuegraf version {}'.format(__version__))
 
@@ -510,10 +520,13 @@ try:
                         # Write to database after each historical batch to prevent timeout issues on large history intervals.
                         info('Submitting datapoints to database; account="{}"; points={}'.format(account['name'], len(usageDataPoints)))
                         dumpPoints("Sending to database", usageDataPoints)
-                        if influxVersion == 2:
-                            write_api.write(bucket=bucket, record=usageDataPoints)
+                        if args.dryrun:
+                            info('Dryrun mode enabled.  Skipping database write.')
                         else:
-                            influx.write_points(usageDataPoints,batch_size=5000)
+                            if influxVersion == 2:
+                                write_api.write(bucket=bucket, record=usageDataPoints)
+                            else:
+                                influx.write_points(usageDataPoints,batch_size=5000)
                         usageDataPoints = []
                         pauseEvent.wait(5)
                     history = False
@@ -524,10 +537,13 @@ try:
                 if not historyrun:
                     info('Submitting datapoints to database; account="{}"; points={}'.format(account['name'], len(usageDataPoints)))
                     dumpPoints("Sending to database", usageDataPoints)
-                    if influxVersion == 2:
-                        write_api.write(bucket=bucket, record=usageDataPoints)
+                    if args.dryrun:
+                        info('Dryrun mode enabled.  Skipping database write.')
                     else:
-                        influx.write_points(usageDataPoints,batch_size=5000)
+                        if influxVersion == 2:
+                            write_api.write(bucket=bucket, record=usageDataPoints)
+                        else:
+                            influx.write_points(usageDataPoints,batch_size=5000)
 
                 # Resuming logging of normal datapoints after history collection has completed.
                 if not history and historyrun:
