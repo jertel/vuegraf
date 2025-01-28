@@ -141,7 +141,7 @@ def dumpPoints(label, usageDataPoints):
             else:
                 debug(f'  {pprint.pformat(point)}')
 
-def getLastDBTimeStamp(chanName, pointType, fooStartTime, fooStopTime, fooHistoryFlag):
+def getLastDBTimeStamp(deviceName, chanName, pointType, fooStartTime, fooStopTime, fooHistoryFlag):
     timeStr = ''
     # Get timestamp of last record in database
     # Influx v2
@@ -153,6 +153,7 @@ def getLastDBTimeStamp(chanName, pointType, fooStartTime, fooStopTime, fooHistor
              '  r._measurement == "energy_usage" and ' +
              '  r.' + tagName + ' == "' + pointType + '" and ' +
              '  r._field == "usage" and ' +
+             '  r.station_name == "' + deviceName + '" and ' +
              '  r.device_name == "' + chanName + '")' +
              '|> last()')
 
@@ -160,7 +161,7 @@ def getLastDBTimeStamp(chanName, pointType, fooStartTime, fooStopTime, fooHistor
             lastRecord = result[0].records[0]
             timeStr = lastRecord['_time'].isoformat()
     else: # Influx v1
-        result = influx.query('select last(usage), time from energy_usage where (device_name = \'' + chanName + '\' AND ' + tagName + ' = \'' + pointType + '\')')
+        result = influx.query('select last(usage), time from energy_usage where (station_name = \'' + station_name + '\' AND device_name = \'' + chanName + '\' AND ' + tagName + ' = \'' + pointType + '\')')
         if len(result) > 0:
             timeStr = next(result.get_points())['time']
 
@@ -231,7 +232,7 @@ def extractDataPoints(device, usageDataPoints, pointType=None, historyStartTime=
         kwhUsage = chan.usage
         if kwhUsage is not None:
             if pointType is None:
-                minuteHistoryStartTime, stopTimeMin, minuteHistoryEnabled = getLastDBTimeStamp(chanName, tagValue_minute, stopTime, stopTime, False)
+                minuteHistoryStartTime, stopTimeMin, minuteHistoryEnabled = getLastDBTimeStamp(deviceName, chanName, tagValue_minute, stopTime, stopTime, False)
                 if not minuteHistoryEnabled or chanNum in excludedDetailChannelNumbers:
                     watts = float(minutesInAnHour * wattsInAKw) * kwhUsage
                     timestamp = stopTime.replace(second=0)
@@ -277,7 +278,7 @@ def extractDataPoints(device, usageDataPoints, pointType=None, historyStartTime=
 
         if collectDetails and detailedSecondsEnabled and historyStartTime is None:
             # Collect seconds (once per hour, never during history collection)
-            secHistoryStartTime, stopTimeSec, secondHistoryEnabled = getLastDBTimeStamp(chanName, tagValue_second, detailedStartTime, stopTime, detailedSecondsEnabled)
+            secHistoryStartTime, stopTimeSec, secondHistoryEnabled = getLastDBTimeStamp(deviceName, chanName, tagValue_second, detailedStartTime, stopTime, detailedSecondsEnabled)
             verbose('Get second details; device="{}"; start="{}"; stop="{}"'.format(chanName, secHistoryStartTime, stopTimeSec))
             usage, usage_start_time = account['vue'].get_chart_usage(chan, secHistoryStartTime, stopTimeSec, scale=Scale.SECOND.value, unit=Unit.KWH.value)
             usage_start_time = usage_start_time.replace(microsecond=0)
