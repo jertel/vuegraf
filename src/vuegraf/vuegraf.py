@@ -111,17 +111,17 @@ def createDataPoint(accountName, deviceName, chanName, watts, timestamp, detaile
     if influxVersion == 2:
         dataPoint = influxdb_client.Point('energy_usage') \
             .tag('account_name', accountName) \
-            .tag('station_name', deviceName) \
             .tag('device_name', chanName) \
             .tag(tagName, detailed) \
             .field('usage', watts) \
             .time(time=timestamp)
+        if addStationField:
+            dataPoint.tag('station_name', deviceName)
     else:
         dataPoint = {
             'measurement': 'energy_usage',
             'tags': {
                 'account_name': accountName,
-                'station_name': deviceName,
                 'device_name': chanName,
                 tagName: detailed,
             },
@@ -130,6 +130,9 @@ def createDataPoint(accountName, deviceName, chanName, watts, timestamp, detaile
             },
             'time': timestamp
         }
+        if addStationField:
+            dataPoint['tags']['station_name'] = deviceName
+
     return dataPoint
 
 def dumpPoints(label, usageDataPoints):
@@ -146,14 +149,16 @@ def getLastDBTimeStamp(deviceName, chanName, pointType, fooStartTime, fooStopTim
     # Get timestamp of last record in database
     # Influx v2
     if influxVersion == 2:
+        stationFilter = ""
+        if addStationField: 
+            stationFilter = '  r.station_name == "' + deviceName + '" and '
         timeCol = '_time'
         result = query_api.query('from(bucket:"' + bucket + '") ' +
              '|> range(start: -3w) ' +
              '|> filter(fn: (r) => ' +
              '  r._measurement == "energy_usage" and ' +
              '  r.' + tagName + ' == "' + pointType + '" and ' +
-             '  r._field == "usage" and ' +
-             '  r.station_name == "' + deviceName + '" and ' +
+             '  r._field == "usage" and ' + stationFilter +
              '  r.device_name == "' + chanName + '")' +
              '|> last()')
 
@@ -161,7 +166,10 @@ def getLastDBTimeStamp(deviceName, chanName, pointType, fooStartTime, fooStopTim
             lastRecord = result[0].records[0]
             timeStr = lastRecord['_time'].isoformat()
     else: # Influx v1
-        result = influx.query('select last(usage), time from energy_usage where (station_name = \'' + station_name + '\' AND device_name = \'' + chanName + '\' AND ' + tagName + ' = \'' + pointType + '\')')
+        stationFilter = ""
+        if addStationField: 
+            stationFilter = 'station_name = \'' + station_name + '\' AND '
+        result = influx.query('select last(usage), time from energy_usage where (' + stationFilter + 'device_name = \'' + chanName + '\' AND ' + tagName + ' = \'' + pointType + '\')')
         if len(result) > 0:
             timeStr = next(result.get_points())['time']
 
@@ -437,6 +445,7 @@ try:
     if 'tagValue_day' in config['influxDb']:
         tagValue_day = config['influxDb']['tagValue_day']
         
+    addStationField = getConfigValue('addStationField', False)
     maxHistoryDays = getConfigValue('maxHistoryDays', 720)
     historyDays = min(args.historydays, maxHistoryDays)
     history = historyDays > 0

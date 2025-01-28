@@ -157,6 +157,12 @@ Be aware that the included dashboard assumes your device name contains the word 
             ]
 ```
 
+### Station Names
+
+If you intend to run multiple Vue systems under the same account, where the channel names duplicate or look similar across those Vue systems then you may want to consider enabling the `addStationField` config parameter. This will include an additional field named 'station_name' in the InfluxDB event record, to help distinguish channel names across those Vue systems or 'stations'.
+
+Note that enabling this at a later time will cause issues due to queries matching multiple records. Therefore if you are installing Vuegraf for the first time and think this could be useful then enable it at the start.
+
 # Running
 Vuegraf can be run either as a container (recommended), or as a host process.
 
