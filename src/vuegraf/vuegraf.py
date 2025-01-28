@@ -18,6 +18,7 @@ import traceback
 from threading import Event
 import argparse
 import pytz
+import pprint
 
 # InfluxDB v1
 import influxdb
@@ -133,7 +134,10 @@ def dumpPoints(label, usageDataPoints):
     if args.debug:
         debug(label)
         for point in usageDataPoints:
-            debug('  {}'.format(point.to_line_protocol()))
+            if influxVersion == 2:
+                debug('  {}'.format(point.to_line_protocol()))
+            else:
+                debug(f'  {pprint.pformat(point)}')
 
 def getLastDBTimeStamp(chanName, pointType, fooStartTime, fooStopTime, fooHistoryFlag):
     timeStr = ''
