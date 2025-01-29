@@ -18,6 +18,7 @@ import traceback
 from threading import Event
 import argparse
 import pytz
+import pprint
 
 # InfluxDB v1
 import influxdb
@@ -113,20 +114,22 @@ def lookupChannelName(account, chan):
 
     return name
 
-def createDataPoint(account, chanName, watts, timestamp, detailed):
+def createDataPoint(accountName, deviceName, chanName, watts, timestamp, detailed):
     dataPoint = None
     if influxVersion == 2:
         dataPoint = influxdb_client.Point('energy_usage') \
-            .tag('account_name', account['name']) \
+            .tag('account_name', accountName) \
             .tag('device_name', chanName) \
             .tag(tagName, detailed) \
             .field('usage', watts) \
             .time(time=timestamp)
+        if addStationField:
+            dataPoint.tag('station_name', deviceName)
     else:
         dataPoint = {
             'measurement': 'energy_usage',
             'tags': {
-                'account_name': account['name'],
+                'account_name': accountName,
                 'device_name': chanName,
                 tagName: detailed,
             },
@@ -135,26 +138,35 @@ def createDataPoint(account, chanName, watts, timestamp, detailed):
             },
             'time': timestamp
         }
+        if addStationField:
+            dataPoint['tags']['station_name'] = deviceName
+
     return dataPoint
 
 def dumpPoints(label, usageDataPoints):
     if args.debug:
         debug(label)
         for point in usageDataPoints:
-            debug('  {}'.format(point.to_line_protocol()))
+            if influxVersion == 2:
+                debug('  {}'.format(point.to_line_protocol()))
+            else:
+                debug(f'  {pprint.pformat(point)}')
 
-def getLastDBTimeStamp(chanName, pointType, fooStartTime, fooStopTime, fooHistoryFlag):
+def getLastDBTimeStamp(deviceName, chanName, pointType, fooStartTime, fooStopTime, fooHistoryFlag):
     timeStr = ''
     # Get timestamp of last record in database
     # Influx v2
     if influxVersion == 2:
+        stationFilter = ""
+        if addStationField: 
+            stationFilter = '  r.station_name == "' + deviceName + '" and '
         timeCol = '_time'
         result = query_api.query('from(bucket:"' + bucket + '") ' +
              '|> range(start: -3w) ' +
              '|> filter(fn: (r) => ' +
              '  r._measurement == "energy_usage" and ' +
              '  r.' + tagName + ' == "' + pointType + '" and ' +
-             '  r._field == "usage" and ' +
+             '  r._field == "usage" and ' + stationFilter +
              '  r.device_name == "' + chanName + '")' +
              '|> last()')
 
@@ -162,7 +174,10 @@ def getLastDBTimeStamp(chanName, pointType, fooStartTime, fooStopTime, fooHistor
             lastRecord = result[0].records[0]
             timeStr = lastRecord['_time'].isoformat()
     else: # Influx v1
-        result = influx.query('select last(usage), time from energy_usage where (device_name = \'' + chanName + '\' AND ' + tagName + ' = \'' + pointType + '\')')
+        stationFilter = ""
+        if addStationField: 
+            stationFilter = 'station_name = \'' + station_name + '\' AND '
+        result = influx.query('select last(usage), time from energy_usage where (' + stationFilter + 'device_name = \'' + chanName + '\' AND ' + tagName + ' = \'' + pointType + '\')')
         if len(result) > 0:
             timeStr = next(result.get_points())['time']
 
@@ -220,6 +235,8 @@ def extractDataPoints(device, usageDataPoints, pointType=None, historyStartTime=
     minutesInAnHour = 60
     secondsInAMinute = 60
     wattsInAKw = 1000
+    deviceName = lookupDeviceName(account, device.device_gid)
+    accountName = account['name']
 
     for chanNum, chan in device.channels.items():
         if chan.nested_devices:
@@ -231,11 +248,11 @@ def extractDataPoints(device, usageDataPoints, pointType=None, historyStartTime=
         kwhUsage = chan.usage
         if kwhUsage is not None:
             if pointType is None:
-                minuteHistoryStartTime, stopTimeMin, minuteHistoryEnabled = getLastDBTimeStamp(chanName, tagValue_minute, stopTime, stopTime, False)
+                minuteHistoryStartTime, stopTimeMin, minuteHistoryEnabled = getLastDBTimeStamp(deviceName, chanName, tagValue_minute, stopTime, stopTime, False)
                 if not minuteHistoryEnabled or chanNum in excludedDetailChannelNumbers:
                     watts = float(minutesInAnHour * wattsInAKw) * kwhUsage
                     timestamp = stopTime.replace(second=0)
-                    usageDataPoints.append(createDataPoint(account, chanName, watts, timestamp, tagValue_minute))
+                    usageDataPoints.append(createDataPoint(accountName, deviceName, chanName, watts, timestamp, tagValue_minute))
                 elif chanNum not in excludedDetailChannelNumbers and historyStartTime is None:
                     noDataFlag = True
                     while noDataFlag:
@@ -251,7 +268,7 @@ def extractDataPoints(device, usageDataPoints, pointType=None, historyStartTime=
                             noDataFlag = False  # Got at least one datapoint.  Set boolean value so we don't loop back
                             timestamp = usage_start_time + datetime.timedelta(minutes=index)
                             watts = float(minutesInAnHour * wattsInAKw) * kwhUsage
-                            usageDataPoints.append(createDataPoint(account, chanName, watts, timestamp, tagValue_minute))
+                            usageDataPoints.append(createDataPoint(accountName, deviceName, chanName, watts, timestamp, tagValue_minute))
                             index += 1
                         if noDataFlag: 
                             # Opps!  No data points found for the time interval in question ('None' returned for ALL values)
@@ -270,14 +287,14 @@ def extractDataPoints(device, usageDataPoints, pointType=None, historyStartTime=
             elif pointType == tagValue_day or pointType == tagValue_hour :
                 watts = kwhUsage * 1000
                 timestamp = historyStartTime
-                usageDataPoints.append(createDataPoint(account, chanName, watts, timestamp, pointType))
+                usageDataPoints.append(createDataPoint(accountName, deviceName, chanName, watts, timestamp, pointType))
 
         if chanNum in excludedDetailChannelNumbers:
             continue
 
         if collectDetails and detailedSecondsEnabled and historyStartTime is None:
             # Collect seconds (once per hour, never during history collection)
-            secHistoryStartTime, stopTimeSec, secondHistoryEnabled = getLastDBTimeStamp(chanName, tagValue_second, detailedStartTime, stopTime, detailedSecondsEnabled)
+            secHistoryStartTime, stopTimeSec, secondHistoryEnabled = getLastDBTimeStamp(deviceName, chanName, tagValue_second, detailedStartTime, stopTime, detailedSecondsEnabled)
             verbose('Get second details; device="{}"; start="{}"; stop="{}"'.format(chanName, secHistoryStartTime, stopTimeSec))
             usage, usage_start_time = account['vue'].get_chart_usage(chan, secHistoryStartTime, stopTimeSec, scale=Scale.SECOND.value, unit=Unit.KWH.value)
             usage_start_time = usage_start_time.replace(microsecond=0)
@@ -288,7 +305,7 @@ def extractDataPoints(device, usageDataPoints, pointType=None, historyStartTime=
                     continue
                 timestamp = usage_start_time + datetime.timedelta(seconds=index)
                 watts = float(secondsInAMinute * minutesInAnHour * wattsInAKw) * kwhUsage
-                usageDataPoints.append(createDataPoint(account, chanName, watts, timestamp, tagValue_second))
+                usageDataPoints.append(createDataPoint(accountName, deviceName, chanName, watts, timestamp, tagValue_second))
                 index += 1
 
         # fetches historical Hour & Day data
@@ -304,7 +321,7 @@ def extractDataPoints(device, usageDataPoints, pointType=None, historyStartTime=
                     continue
                 timestamp = usage_start_time + datetime.timedelta(hours=index)
                 watts = kwhUsage * 1000
-                usageDataPoints.append(createDataPoint(account, chanName, watts, timestamp, tagValue_hour))
+                usageDataPoints.append(createDataPoint(accountName, deviceName, chanName, watts, timestamp, tagValue_hour))
                 index += 1
             #Days
             usage, usage_start_time = account['vue'].get_chart_usage(chan, historyStartTime, historyEndTime, scale=Scale.DAY.value, unit=Unit.KWH.value)
@@ -317,7 +334,7 @@ def extractDataPoints(device, usageDataPoints, pointType=None, historyStartTime=
                 timestamp = timestamp.replace(hour=23, minute=59, second=59,microsecond=0)
                 timestamp = timestamp.astimezone(pytz.UTC)
                 watts =   kwhUsage * 1000
-                usageDataPoints.append(createDataPoint(account, chanName, watts, timestamp, tagValue_day))
+                usageDataPoints.append(createDataPoint(accountName, deviceName, chanName, watts, timestamp, tagValue_day))
                 index += 1
 
 startupTime = datetime.datetime.now(datetime.UTC).replace(microsecond=0)
@@ -354,6 +371,12 @@ try:
         action='store_true',
         default=False,
         help='Drop database and create a new one. USE WITH CAUTION - WILL RESULT IN COMPLETE VUEGRAF DATA LOSS!')
+    parser.add_argument(
+        '--dryrun',
+        help='Read from the API and process the data, but do not write to influxdb',
+        action='store_true',
+        default=False
+        )
     args = parser.parse_args()
     info('Starting Vuegraf version {}'.format(__version__))
 
@@ -430,6 +453,7 @@ try:
     if 'tagValue_day' in config['influxDb']:
         tagValue_day = config['influxDb']['tagValue_day']
         
+    addStationField = getConfigValue('addStationField', False)
     maxHistoryDays = getConfigValue('maxHistoryDays', 720)
     historyDays = min(args.historydays, maxHistoryDays)
     history = historyDays > 0
@@ -514,10 +538,13 @@ try:
                         # Write to database after each historical batch to prevent timeout issues on large history intervals.
                         info('Submitting datapoints to database; account="{}"; points={}'.format(account['name'], len(usageDataPoints)))
                         dumpPoints("Sending to database", usageDataPoints)
-                        if influxVersion == 2:
-                            write_api.write(bucket=bucket, record=usageDataPoints)
+                        if args.dryrun:
+                            info('Dryrun mode enabled.  Skipping database write.')
                         else:
-                            influx.write_points(usageDataPoints,batch_size=5000)
+                            if influxVersion == 2:
+                                write_api.write(bucket=bucket, record=usageDataPoints)
+                            else:
+                                influx.write_points(usageDataPoints,batch_size=5000)
                         usageDataPoints = []
                         pauseEvent.wait(5)
                     history = False
@@ -528,10 +555,13 @@ try:
                 if not historyrun:
                     info('Submitting datapoints to database; account="{}"; points={}'.format(account['name'], len(usageDataPoints)))
                     dumpPoints("Sending to database", usageDataPoints)
-                    if influxVersion == 2:
-                        write_api.write(bucket=bucket, record=usageDataPoints)
+                    if args.dryrun:
+                        info('Dryrun mode enabled.  Skipping database write.')
                     else:
-                        influx.write_points(usageDataPoints,batch_size=5000)
+                        if influxVersion == 2:
+                            write_api.write(bucket=bucket, record=usageDataPoints)
+                        else:
+                            influx.write_points(usageDataPoints,batch_size=5000)
 
                 # Resuming logging of normal datapoints after history collection has completed.
                 if not history and historyrun:
