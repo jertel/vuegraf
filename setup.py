@@ -5,7 +5,7 @@ from setuptools import setup
 base_dir = os.path.dirname(__file__)
 setup(
     name='vuegraf',
-    version='1.7.2',
+    version='1.8.0',
     author='Jason Ertel',
     long_description=open('README.md').read(),
     long_description_content_type="text/markdown",
@@ -28,9 +28,9 @@ setup(
     },
     packages=find_packages(),
     install_requires=[
-        'influxdb>=5.3.1',
-        'influxdb_client>=1.41.0',
-        'pyemvue>=0.18.4',
+        'influxdb>=5.3.2',
+        'influxdb_client>=1.48.0',
+        'pyemvue>=0.18.7',
         'argparse>= 1.4.0'
     ]
 )

@@ -4,12 +4,23 @@
 - TBD
 
 ## New features
+- TBD
+
+## Other changes
+- TBD
+
+# 1.8.0
+
+## Breaking changes
+- None
+
+## New features
 - Refactor and improve history and detailed data collection including consistent timezone usage - @cooldil
 - Add --dryrun CLI arg for skipping writes to InfluxDB - @garthwebb
 - New configuration option to include station_name field in all new InfluxDB datapoints, to distinguish similarly named channel devices within a single account - @garthwebb
 
 ## Other changes
-- Upgrade to pyemvue 0.18.6 - @jertel
+- Upgrade to pyemvue 0.18.7 - @jertel
 - Upgrade to influxdb_client 1.48.0 - @jertel
 - Upgrade to influxdb 5.3.2 - @jertel
 - Fix --debug CLI arg error when using InfluxDB v1 - @garthwebb
