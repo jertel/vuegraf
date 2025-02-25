@@ -157,6 +157,34 @@ Be aware that the included dashboard assumes your device name contains the word 
             ]
 ```
 
+You can also explicity define the channel and circuit names by using a dictionary in the configuration. Circuits that are merged in the Emporia App may be given a channel assignment that is far out of the range of your circuts (ex. 98 or 99). In this case, assigning the channels directly using a dictionary is preferred. 
+
+```json
+            "devices": [
+                {
+                    "name": "Right Panel",
+                    "channels": {
+                        "2" : "Upstairs bathroom",
+                        "3" : "Back bedroom",
+                        "13" : "Master Bedroom",
+                        "14" : "Basement Family Room",
+                        "97" : "1st Floor Heat Pump",
+                        "98" : "2nd floor Heat Pump"
+                    }
+                },
+                {
+                    "name": "Left Panel",
+                    "channels": {
+                        "1" : "Kitchen Outlets",
+                        "6" : "Washer",
+                        "7" : "Garage Lights",
+                        "97" : "Water Heater",
+                        "98" : "Dryer"
+                    }
+                }
+            ]
+```
+
 ### Station Names
 
 If you intend to run multiple Vue systems under the same account, where the channel names duplicate or look similar across those Vue systems then you may want to consider enabling the `addStationField` config parameter. This will include an additional field named 'station_name' in the InfluxDB event record, to help distinguish channel names across those Vue systems or 'stations'.
