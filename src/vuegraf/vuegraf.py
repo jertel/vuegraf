@@ -104,10 +104,6 @@ def lookupChannelName(account, chan):
                         elif isinstance(device['channels'], dict):
                             name = device['channels'][str(num)]
                             break
-
-                    if 'channels' in device and len(device['channels']) >= num:
-                        name = device['channels'][num - 1]
-                        break
     except:
         if chan.channel_num == '1,2,3':
             name = deviceName
