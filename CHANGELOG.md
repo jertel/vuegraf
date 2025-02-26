@@ -4,7 +4,7 @@
 - TBD
 
 ## New features
-- TBD
+- Support defining channel mapping use a dictionary in addition to existing list/index method - [#181](https://github.com/jertel/vuegraf/pull/181) - @brodjieski
 
 ## Other changes
 - TBD
