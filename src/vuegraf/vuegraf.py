@@ -281,7 +281,7 @@ def extractDataPoints(device, usageDataPoints, pointType=None, historyStartTime=
                                 noDataFlag = False
                         minuteHistoryEnabled = False
             elif pointType == tagValue_day or pointType == tagValue_hour :
-                watts = kwhUsage * 1000
+                watts = kwhUsage * wattsInAKw
                 timestamp = historyStartTime
                 usageDataPoints.append(createDataPoint(accountName, deviceName, chanName, watts, timestamp, pointType))
 
@@ -316,7 +316,7 @@ def extractDataPoints(device, usageDataPoints, pointType=None, historyStartTime=
                     index += 1
                     continue
                 timestamp = usage_start_time + datetime.timedelta(hours=index)
-                watts = kwhUsage * 1000
+                watts = kwhUsage * wattsInAKw
                 usageDataPoints.append(createDataPoint(accountName, deviceName, chanName, watts, timestamp, tagValue_hour))
                 index += 1
             #Days
@@ -326,10 +326,10 @@ def extractDataPoints(device, usageDataPoints, pointType=None, historyStartTime=
                 if kwhUsage is None:
                     index += 1
                     continue
-                timestamp = usage_start_time.astimezone(accountTimeZone) + datetime.timedelta(days=index)
-                timestamp = timestamp.replace(hour=23, minute=59, second=59,microsecond=0)
+                timestamp = usage_start_time.astimezone(accountTimeZone) + datetime.timedelta(hours=4,days=index)
+                timestamp = timestamp.astimezone(accountTimeZone).replace(hour=23, minute=59, second=59,microsecond=0)
                 timestamp = timestamp.astimezone(pytz.UTC)
-                watts =   kwhUsage * 1000
+                watts =   kwhUsage * wattsInAKw
                 usageDataPoints.append(createDataPoint(accountName, deviceName, chanName, watts, timestamp, tagValue_day))
                 index += 1
 
@@ -471,6 +471,11 @@ try:
     detailedStartTime = startupTime
     pastDay = datetime.datetime.now(accountTimeZone)
     pastDay = pastDay.replace(hour=23, minute=59, second=59, microsecond=0)
+    # Account for DST transition days 
+    if pastDay.hour != pastDay.astimezone(accountTimeZone).hour:
+        pastDay = pastDay.replace(hour=19) 
+        pastDay = pastDay.astimezone(accountTimeZone)
+        pastDay = pastDay.replace(hour=23, minute=59, second=59, microsecond=0)
     historyrun = history
 
     while running:
@@ -492,11 +497,11 @@ try:
             try:
                 deviceGids = list(account['deviceIdMap'].keys())
                 usages = account['vue'].get_device_list_usage(deviceGids, stopTime, scale=Scale.MINUTE.value, unit=Unit.KWH.value)
-                if usages is not None:
+                if usages is not None and not historyrun:
                     for gid, device in usages.items():
                         extractDataPoints(device, usageDataPoints)
 
-                if collectDetails and detailedHoursEnabled:
+                if collectDetails and detailedHoursEnabled and not historyrun:
                     pastHour = stopTime - datetime.timedelta(hours=1)
                     pastHour = pastHour.replace(minute=00, second=00,microsecond=0)
                     verbose('Collecting previous hour: {} '.format(pastHour))
@@ -506,7 +511,7 @@ try:
                         for gid, device in usages.items():
                             extractDataPoints(device, usageDataPoints, tagValue_hour, historyStartTime)
 
-                if pastDay.day != curDay.day:
+                if pastDay.day != curDay.day and not historyrun:
                     usages = account['vue'].get_device_list_usage(deviceGids, pastDay, scale=Scale.DAY.value, unit=Unit.KWH.value)
                     historyStartTime = pastDay.astimezone(pytz.UTC)
                     verbose('Collecting previous day: {}Local - {}UTC,  '.format(pastDay, historyStartTime))
@@ -515,22 +520,27 @@ try:
                             extractDataPoints(device, usageDataPoints,tagValue_day, historyStartTime)
                     pastDay = datetime.datetime.now(accountTimeZone)
                     pastDay = pastDay.replace(hour=23, minute=59, second=59, microsecond=0)
-
+                    # Account for DST transition
+                    if pastDay.hour != pastDay.astimezone(accountTimeZone).hour:
+                        pastDay = pastDay.replace(hour=19) 
+                        pastDay = pastDay.astimezone(accountTimeZone)
+                        pastDay = pastDay.replace(hour=23, minute=59, second=59, microsecond=0)
+                        
                 if history:
                     stopTime = stopTime.astimezone(accountTimeZone)
                     info('Loading historical data: {} day(s) ago'.format(historyDays))
                     historyStartTime = stopTime - datetime.timedelta(historyDays)
-                    historyStartTime = historyStartTime.replace(hour=00, minute=00, second=00, microsecond=000000)
+                    historyStartTime = historyStartTime.astimezone(accountTimeZone).replace(hour=00, minute=00, second=00, microsecond=000000)
                     while historyStartTime <= stopTime:
                         historyEndTime = min(historyStartTime  + datetime.timedelta(20), stopTime)
-                        historyEndTime = historyEndTime.replace(hour=23, minute=59, second=59,microsecond=0)
+                        historyEndTime = historyEndTime.astimezone(accountTimeZone).replace(hour=23, minute=59, second=59,microsecond=0)
                         verbose('    {}  -  {}'.format(historyStartTime,historyEndTime))
                         for gid, device in usages.items():
                             extractDataPoints(device, usageDataPoints, 'History', historyStartTime, historyEndTime)
                         if not running:
                             break
-                        historyStartTime = historyEndTime + datetime.timedelta(1)
-                        historyStartTime = historyStartTime.replace(hour=00, minute=00, second=00, microsecond=000000)
+                        historyStartTime = historyEndTime + datetime.timedelta(days=1,hours=-4)
+                        historyStartTime = historyStartTime.astimezone(accountTimeZone).replace(hour=00, minute=00, second=00, microsecond=000000)
                         # Write to database after each historical batch to prevent timeout issues on large history intervals.
                         info('Submitting datapoints to database; account="{}"; points={}'.format(account['name'], len(usageDataPoints)))
                         dumpPoints("Sending to database", usageDataPoints)
