@@ -4,3 +4,5 @@ docker-compose.yaml
 dist/
 vuegraf.egg-info/
 vugraftobe.py
+.venv
+config.json

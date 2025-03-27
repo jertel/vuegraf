@@ -29,29 +29,20 @@ import influxdb_client
 from pyemvue import PyEmVue
 from pyemvue.enums import Scale, Unit
 
-# flush=True helps when running in a container without a tty attached
-# (alternatively, "python -u" or PYTHONUNBUFFERED will help here)
-def log(level, msg):
-    now = datetime.datetime.now(datetime.UTC)
-    print('{} | {} | {}'.format(now, level.ljust(5), msg), flush=True)
+import logging
 
-def debug(msg):
-    if args.debug:
-        log('DEBUG', msg)
-
-def error(msg):
-    log('ERROR', msg)
-
-def info(msg):
-    log('INFO', msg)
-
-def verbose(msg):
-    if args.verbose:
-        log('VERB', msg)
+# Configure logging
+logger = logging.getLogger('vuegraf')
+logger.setLevel(logging.DEBUG)
+handler = logging.StreamHandler()
+formatter = logging.Formatter('%(asctime)s | %(levelname)-5s | %(message)s')
+formatter.converter = lambda *args: datetime.datetime.now(datetime.UTC).timetuple()
+handler.setFormatter(formatter)
+logger.addHandler(handler)
 
 def handleExit(signum, frame):
     global running
-    error('Caught exit signal')
+    logger.error('Caught exit signal')
     running = False
     pauseEvent.set()
 
@@ -74,7 +65,7 @@ def populateDevices(account):
             if chan.name is None and chan.channel_num == '1,2,3':
                 chan.name = device.device_name
             channelIdMap[key] = chan
-            info('Discovered new channel: {} ({})'.format(chan.name, chan.channel_num))
+            logger.info('Discovered new channel: {} ({})'.format(chan.name, chan.channel_num))
 
 def lookupDeviceName(account, device_gid):
     if device_gid not in account['deviceIdMap']:
@@ -253,7 +244,7 @@ def extractDataPoints(device, usageDataPoints, pointType=None, historyStartTime=
                     noDataFlag = True
                     while noDataFlag:
                         # Collect minutes history (if neccessary, never during history collection)
-                        info('Get minute details; device="{}"; start="{}"; stop="{}"'.format(chanName, minuteHistoryStartTime, stopTimeMin))
+                        logger.info('Get minute details; device="{}"; start="{}"; stop="{}"'.format(chanName, minuteHistoryStartTime, stopTimeMin))
                         usage, usage_start_time = account['vue'].get_chart_usage(chan, minuteHistoryStartTime, stopTimeMin, scale=Scale.MINUTE.value, unit=Unit.KWH.value)
                         usage_start_time = usage_start_time.replace(second=0,microsecond=0)
                         index = 0
@@ -291,7 +282,7 @@ def extractDataPoints(device, usageDataPoints, pointType=None, historyStartTime=
         if collectDetails and detailedSecondsEnabled and historyStartTime is None:
             # Collect seconds (once per hour, never during history collection)
             secHistoryStartTime, stopTimeSec, secondHistoryEnabled = getLastDBTimeStamp(deviceName, chanName, tagValue_second, detailedStartTime, stopTime, detailedSecondsEnabled)
-            verbose('Get second details; device="{}"; start="{}"; stop="{}"'.format(chanName, secHistoryStartTime, stopTimeSec))
+            logger.verbose('Get second details; device="{}"; start="{}"; stop="{}"'.format(chanName, secHistoryStartTime, stopTimeSec))
             usage, usage_start_time = account['vue'].get_chart_usage(chan, secHistoryStartTime, stopTimeSec, scale=Scale.SECOND.value, unit=Unit.KWH.value)
             usage_start_time = usage_start_time.replace(microsecond=0)
             index = 0
@@ -306,7 +297,7 @@ def extractDataPoints(device, usageDataPoints, pointType=None, historyStartTime=
 
         # fetches historical Hour & Day data
         if historyStartTime is not None and historyEndTime is not None:
-            verbose('Get historic details; device="{}"; start="{}"; stop="{}"'.format(chanName, historyStartTime,historyEndTime ))
+            logger.verbose('Get historic details; device="{}"; start="{}"; stop="{}"'.format(chanName, historyStartTime,historyEndTime ))
             #Hours
             usage, usage_start_time = account['vue'].get_chart_usage(chan, historyStartTime, historyEndTime, scale=Scale.HOUR.value, unit=Unit.KWH.value)
             usage_start_time = usage_start_time.replace(minute=0, second=0, microsecond=0)
@@ -374,7 +365,7 @@ try:
         default=False
         )
     args = parser.parse_args()
-    info('Starting Vuegraf version {}'.format(__version__))
+    logger.info('Starting Vuegraf version {}'.format(__version__))
 
     config = {}
     with open(args.configFilename) as configFile:
@@ -393,7 +384,7 @@ try:
         sslVerify = config['influxDb']['ssl_verify']
 
     if influxVersion == 2:
-        info('Using InfluxDB version 2')
+        logger.info('Using InfluxDB version 2')
         bucket = config['influxDb']['bucket']
         org = config['influxDb']['org']
         token = config['influxDb']['token']
@@ -408,13 +399,13 @@ try:
         query_api = influx2.query_api()
 
         if args.resetdatabase:
-            info('Resetting database')
+            logger.info('Resetting database')
             delete_api = influx2.delete_api()
             start = '1970-01-01T00:00:00Z'
             stop = startupTime.isoformat(timespec='seconds').replace("+00:00", "") + 'Z'
             delete_api.delete(start, stop, '_measurement="energy_usage"', bucket=bucket, org=org)
     else:
-        info('Using InfluxDB version 1')
+        logger.info('Using InfluxDB version 1')
 
         sslEnable = False
         if 'ssl_enable' in config['influxDb']:
@@ -429,7 +420,7 @@ try:
         influx.create_database(config['influxDb']['database'])
 
         if args.resetdatabase:
-            info('Resetting database')
+            logger.info('Resetting database')
             influx.delete_series(measurement='energy_usage')
 
     # Get Influx Tag information
@@ -462,12 +453,12 @@ try:
     detailedDataEnabled = getConfigValue('detailedDataEnabled', False)
     detailedSecondsEnabled = detailedDataEnabled and getConfigValue('detailedDataSecondsEnabled', True)
     detailedHoursEnabled = detailedDataEnabled and getConfigValue('detailedDataHoursEnabled', True)
-    info('Settings -> updateIntervalSecs: {}, detailedDataEnabled: {}, detailedIntervalSecs: {}, detailedDataHoursEnabled: {}, detailedDataSecondsEnabled: {}'.format(intervalSecs, detailedDataEnabled, detailedIntervalSecs, detailedHoursEnabled, detailedSecondsEnabled))
-    info('Settings -> historyDays: {}, maxHistoryDays: {}'.format(historyDays, maxHistoryDays))    
+    logger.info('Settings -> updateIntervalSecs: {}, detailedDataEnabled: {}, detailedIntervalSecs: {}, detailedDataHoursEnabled: {}, detailedDataSecondsEnabled: {}'.format(intervalSecs, detailedDataEnabled, detailedIntervalSecs, detailedHoursEnabled, detailedSecondsEnabled))
+    logger.info('Settings -> historyDays: {}, maxHistoryDays: {}'.format(historyDays, maxHistoryDays))
     lagSecs = getConfigValue('lagSecs', 5)
     accountTimeZoneName = getConfigValue('timezone', None)
     accountTimeZone = pytz.timezone(accountTimeZoneName) if accountTimeZoneName is not None and accountTimeZoneName.upper() != "TZ" else None
-    info('Settings -> timezone: {}'.format(accountTimeZone))
+    logger.info('Settings -> timezone: {}'.format(accountTimeZone))
     detailedStartTime = startupTime
     pastDay = datetime.datetime.now(accountTimeZone)
     pastDay = pastDay.replace(hour=23, minute=59, second=59, microsecond=0)
@@ -480,13 +471,14 @@ try:
         stopTime = now - datetime.timedelta(seconds=lagSecs)
         secondsSinceLastDetailCollection = (stopTime - detailedStartTime).total_seconds()
         collectDetails = detailedDataEnabled and detailedIntervalSecs > 0 and secondsSinceLastDetailCollection >= detailedIntervalSecs
-        verbose('Starting next event collection; collectDetails={}; secondsSinceLastDetailCollection={}; detailedIntervalSecs={}'.format(collectDetails, secondsSinceLastDetailCollection, detailedIntervalSecs))
+        if args.verbose:
+            logger.debug('Starting next event collection; collectDetails={}; secondsSinceLastDetailCollection={}; detailedIntervalSecs={}'.format(collectDetails, secondsSinceLastDetailCollection, detailedIntervalSecs))
 
         for account in config['accounts']:
             if 'vue' not in account:
                 account['vue'] = PyEmVue()
                 account['vue'].login(username=account['email'], password=account['password'])
-                info('Login completed')
+                logger.info('Login completed')
                 populateDevices(account)
 
             try:
@@ -499,7 +491,8 @@ try:
                 if collectDetails and detailedHoursEnabled:
                     pastHour = stopTime - datetime.timedelta(hours=1)
                     pastHour = pastHour.replace(minute=00, second=00,microsecond=0)
-                    verbose('Collecting previous hour: {} '.format(pastHour))
+                    if args.verbose:
+                        logger.debug('Collecting previous hour: {} '.format(pastHour))
                     historyStartTime = pastHour
                     usages = account['vue'].get_device_list_usage(deviceGids, pastHour, scale=Scale.HOUR.value, unit=Unit.KWH.value)
                     if usages is not None:
@@ -509,7 +502,8 @@ try:
                 if pastDay.day != curDay.day:
                     usages = account['vue'].get_device_list_usage(deviceGids, pastDay, scale=Scale.DAY.value, unit=Unit.KWH.value)
                     historyStartTime = pastDay.astimezone(pytz.UTC)
-                    verbose('Collecting previous day: {}Local - {}UTC,  '.format(pastDay, historyStartTime))
+                    if args.verbose:
+                        logger.debug('Collecting previous day: {}Local - {}UTC,  '.format(pastDay, historyStartTime))
                     if usages is not None:
                         for gid, device in usages.items():
                             extractDataPoints(device, usageDataPoints,tagValue_day, historyStartTime)
@@ -518,13 +512,14 @@ try:
 
                 if history:
                     stopTime = stopTime.astimezone(accountTimeZone)
-                    info('Loading historical data: {} day(s) ago'.format(historyDays))
+                    logger.info('Loading historical data: {} day(s) ago'.format(historyDays))
                     historyStartTime = stopTime - datetime.timedelta(historyDays)
                     historyStartTime = historyStartTime.replace(hour=00, minute=00, second=00, microsecond=000000)
                     while historyStartTime <= stopTime:
                         historyEndTime = min(historyStartTime  + datetime.timedelta(20), stopTime)
                         historyEndTime = historyEndTime.replace(hour=23, minute=59, second=59,microsecond=0)
-                        verbose('    {}  -  {}'.format(historyStartTime,historyEndTime))
+                        if args.verbose:
+                            logger.debug('    {}  -  {}'.format(historyStartTime,historyEndTime))
                         for gid, device in usages.items():
                             extractDataPoints(device, usageDataPoints, 'History', historyStartTime, historyEndTime)
                         if not running:
@@ -532,10 +527,13 @@ try:
                         historyStartTime = historyEndTime + datetime.timedelta(1)
                         historyStartTime = historyStartTime.replace(hour=00, minute=00, second=00, microsecond=000000)
                         # Write to database after each historical batch to prevent timeout issues on large history intervals.
-                        info('Submitting datapoints to database; account="{}"; points={}'.format(account['name'], len(usageDataPoints)))
-                        dumpPoints("Sending to database", usageDataPoints)
+                        logger.info('Submitting datapoints to database; account="{}"; points={}'.format(account['name'], len(usageDataPoints)))
+                        if args.debug:
+                            logger.debug("Sending to database")
+                            for point in usageDataPoints:
+                                logger.debug('  {}'.format(point.to_line_protocol() if influxVersion == 2 else pprint.pformat(point)))
                         if args.dryrun:
-                            info('Dryrun mode enabled.  Skipping database write.')
+                            logger.info('Dryrun mode enabled.  Skipping database write.')
                         else:
                             if influxVersion == 2:
                                 write_api.write(bucket=bucket, record=usageDataPoints)
@@ -549,10 +547,10 @@ try:
                     break
 
                 if not historyrun:
-                    info('Submitting datapoints to database; account="{}"; points={}'.format(account['name'], len(usageDataPoints)))
+                    logger.info('Submitting datapoints to database; account="{}"; points={}'.format(account['name'], len(usageDataPoints)))
                     dumpPoints("Sending to database", usageDataPoints)
                     if args.dryrun:
-                        info('Dryrun mode enabled.  Skipping database write.')
+                        logger.info('Dryrun mode enabled.  Skipping database write.')
                     else:
                         if influxVersion == 2:
                             write_api.write(bucket=bucket, record=usageDataPoints)
@@ -564,18 +562,18 @@ try:
                     historyrun = False
 
             except:
-                error('Failed to record new usage data: {}'.format(sys.exc_info()))
+                logger.error('Failed to record new usage data: {}'.format(sys.exc_info()))
                 traceback.print_exc()
 
         if collectDetails:
             detailedStartTime = stopTime + datetime.timedelta(seconds=1)
         pauseEvent.wait(intervalSecs)
 
-    info('Finished')
+    logger.info('Finished')
 except SystemExit as e:
     #If sys.exit was 2, then normal syntax exit from help or bad command line, no error message
     if e.code == 0 or e.code == 2:
         quit(0)
     else:
-        error('Fatal error: {}'.format(sys.exc_info()))
+        logger.error('Fatal error: {}'.format(sys.exc_info()))
         traceback.print_exc()
