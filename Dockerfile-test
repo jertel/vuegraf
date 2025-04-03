@@ -1,0 +1,12 @@
+FROM python:3.13-slim
+
+RUN apt update && apt upgrade -y
+RUN apt install -y gcc libffi-dev
+
+WORKDIR /home/vuegraf
+
+RUN mkdir src
+
+ADD src/requirements*.txt src/
+
+RUN pip3 install -r src/requirements-dev.txt

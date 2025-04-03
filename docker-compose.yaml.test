@@ -1,0 +1,10 @@
+services:
+    tox:
+        build:
+            context: ./
+            dockerfile: Dockerfile-test
+        command: tox
+        container_name: vuegraf_tox
+        working_dir: /home/vuegraf
+        volumes:
+            - ./:/home/vuegraf

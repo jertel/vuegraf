@@ -210,26 +210,26 @@ docker run --name vuegraf -d -v /home/myuser/vuegraf:/opt/vuegraf/conf jertel/vu
 
 ## Host Process
 
-Ensure Python 3 and Pip are both installed. Install the required dependencies:
+Ensure Python 3 and Pip are both installed. Install the Vuegraf module:
 
 ```sh
-pip install -r src/requirements.txt
+pip install vuegraf
 ```
 or, on some Linux installations:
 
 ```sh
-pip3 install -r src/requirements.txt
+pip3 install vuegraf
 ```
 
 
-Then run the program via Python, specifying the JSON configuration file path as the only argument:
+Then run the program, specifying the JSON configuration file path as the only argument:
 
 ```sh
-python src/vuegraf/vuegraf.py vuegraf.json
+vuegraf vuegraf.json
 ```
 or, on some Linux installations:
 ```sh
-python3 src/vuegraf/vuegraf.py vuegraf.json
+vuegraf vuegraf.json
 ```
 
 Optional Command Line Parameters

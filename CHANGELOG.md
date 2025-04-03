@@ -1,4 +1,4 @@
-# 1.TBD.TBD
+# 1.9.0.beta
 
 ## Breaking changes
 - TBD
@@ -7,7 +7,7 @@
 - Support defining channel mapping use a dictionary in addition to existing list/index method - [#181](https://github.com/jertel/vuegraf/pull/181) - @brodjieski
 
 ## Other changes
-- TBD
+- Complete refactor of the application for improve maintainability - @jertel
 
 # 1.8.0
 

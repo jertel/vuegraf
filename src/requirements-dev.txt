@@ -1,0 +1,10 @@
+-r requirements.txt
+flake8
+flake8-absolute-import
+pre-commit
+pylint==3.3.3
+pytest==8.3.4
+pytest-cov==6.0.0
+pytest-xdist==3.6.1
+setuptools
+tox==4.23.2
