@@ -8,8 +8,9 @@ from unittest.mock import patch, MagicMock, call
 import signal
 import sys
 import datetime
-# import threading # Unused import
 import pytest
+
+# Local imports
 from vuegraf import vuegraf
 
 # Import the module under test *before* mocking sys.modules if they depend on it

@@ -1,13 +1,12 @@
 # Copyright (c) Jason Ertel (jertel).
 # This file is part of the Vuegraf project and is made available under the MIT License.
 
-# Contains pytest tests for the influx module.
-
 import copy
 import datetime
 import influxdb_client
 from unittest.mock import MagicMock, patch
 
+# Local imports
 from vuegraf import influx
 from vuegraf.time import getTimeNow
 

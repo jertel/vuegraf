@@ -1,9 +1,6 @@
 # Copyright (c) Jason Ertel (jertel).
 # This file is part of the Vuegraf project and is made available under the MIT License.
 
-# pylint: disable=missing-function-docstring, missing-class-docstring, line-too-long
-# pylint: disable=protected-access, too-many-public-methods, duplicate-code
-
 import datetime
 import logging
 from unittest import TestCase

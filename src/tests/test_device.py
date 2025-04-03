@@ -1,4 +1,3 @@
-# src/tests/test_device.py
 # Copyright (c) Jason Ertel (jertel).
 # This file is part of the Vuegraf project and is made available under the MIT License.
 
@@ -6,6 +5,7 @@ import unittest
 from unittest.mock import MagicMock, patch
 from pyemvue.device import VueDevice, VueDeviceChannel
 
+# Local imports
 from vuegraf import device as device_module
 
 
