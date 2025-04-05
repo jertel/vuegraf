@@ -79,10 +79,12 @@ def getLastDBTimeStamp(config, deviceName, chanName, pointType, startTime, stopT
     else:  # Influx v1
         stationFilter = ""
         if addStationField:
-            stationFilter = 'station_name = \'' + deviceName + '\' AND '
-        result = config['influx'].query('select last(usage), time from energy_usage where (' + stationFilter +
-                                        'device_name = \'' + chanName + '\' AND ' +
-                                        tagName + ' = \'' + pointType + '\')')
+            stationFilter = 'station_name = \'' + deviceName.replace('\'', '\\\'') + '\' AND '
+        query = 'select last(usage), time from energy_usage where (' + stationFilter + \
+                'device_name = \'' + chanName.replace('\'', '\\\'') + '\' AND ' + \
+                tagName.replace('\'', '\\\'') + ' = \'' + pointType + '\')'
+        logger.debug('InfluxDB v1 Query: %s', query)
+        result = config['influx'].query(query)
 
         if len(result) > 0:
             timeStr = next(result.get_points())['time']
