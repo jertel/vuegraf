@@ -18,7 +18,7 @@
 - Support defining channel mapping use a dictionary in addition to existing list/index method - [#181](https://github.com/jertel/vuegraf/pull/181) - @brodjieski
 
 ## Other changes
-- Complete refactor of the application for improve maintainability - @jertel
+- Complete refactor of the application for improved maintainability - @jertel
 
 # 1.8.0
 
