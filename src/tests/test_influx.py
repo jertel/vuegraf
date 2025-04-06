@@ -816,6 +816,7 @@ def test_init_influx_connection_v1_with_auth(mock_influx_client_class):
     mock_influx_client_class.assert_called_once_with(
         host='localhost',
         port=8086,
+        timeout=60_000,
         username='testuser',
         password='testpass',
         database='vuegraf',
@@ -841,6 +842,7 @@ def test_init_influx_connection_v1_no_auth(mock_influx_client_class):
     mock_influx_client_class.assert_called_once_with(
         host='localhost',
         port=8086,
+        timeout=60_000,
         database='vuegraf',
         ssl=False,
         verify_ssl=True
@@ -865,6 +867,7 @@ def test_init_influx_connection_v1_missing_ssl_config(mock_influx_client_class):
     mock_influx_client_class.assert_called_once_with(
         host='localhost',
         port=8086,
+        timeout=60_000,
         database='vuegraf',
         ssl=False,
         verify_ssl=True
@@ -878,6 +881,7 @@ def test_init_influx_connection_v1_ssl(mock_influx_client_class):
     """Test initInfluxConnection for v1 with SSL enabled."""
     config = copy.deepcopy(SAMPLE_CONFIG_V1)
     config['influxDb']['ssl_enable'] = True
+    config['influxDb']['timeout'] = 120_000
     config['influxDb']['ssl_verify'] = False  # Test verify false as well
     mock_influx_instance = MagicMock()
     mock_influx_client_class.return_value = mock_influx_instance
@@ -887,6 +891,7 @@ def test_init_influx_connection_v1_ssl(mock_influx_client_class):
     mock_influx_client_class.assert_called_once_with(
         host='localhost',
         port=8086,
+        timeout=120_000,
         username='testuser',
         password='testpass',
         database='vuegraf',
@@ -916,6 +921,7 @@ def test_init_influx_connection_v1_reset(mock_influx_client_class):
 def test_init_influx_connection_v2(mock_get_time_now, mock_influx_client_class):
     """Test initInfluxConnection for v2."""
     config = copy.deepcopy(SAMPLE_CONFIG_V2)
+    config['influxDb']['timeout'] = 120_000
     mock_influx_instance = MagicMock()
     mock_influx_client_class.return_value = mock_influx_instance
     mock_delete_api = MagicMock()
@@ -930,7 +936,8 @@ def test_init_influx_connection_v2(mock_get_time_now, mock_influx_client_class):
         url='http://localhost:8086',
         token='my-token',
         org='my-org',
-        verify_ssl=True
+        verify_ssl=True,
+        timeout=120_000,
     )
     mock_influx_instance.delete_api.assert_not_called()
     assert config['influx'] == mock_influx_instance

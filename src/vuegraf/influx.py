@@ -152,6 +152,8 @@ def initInfluxConnection(config):
     if 'ssl_verify' in config['influxDb']:
         sslVerify = config['influxDb']['ssl_verify']
 
+    timeout = config['influxDb']['timeout'] if 'timeout' in config['influxDb'] else 60_000
+
     influxVersion = getInfluxVersion(config)
     if influxVersion == 2:
         logger.info('Using InfluxDB version 2')
@@ -163,7 +165,8 @@ def initInfluxConnection(config):
            url=url,
            token=token,
            org=org,
-           verify_ssl=sslVerify
+           verify_ssl=sslVerify,
+           timeout=timeout,
         )
 
         if config['args'].resetdatabase:
@@ -183,11 +186,11 @@ def initInfluxConnection(config):
 
         # Only authenticate to ingress if 'user' entry was provided in config
         if 'user' in config['influxDb']:
-            influx = influxdb.InfluxDBClient(host=config['influxDb']['host'], port=config['influxDb']['port'],
+            influx = influxdb.InfluxDBClient(host=config['influxDb']['host'], port=config['influxDb']['port'], timeout=timeout,
                                              username=config['influxDb']['user'], password=config['influxDb']['pass'],
                                              database=config['influxDb']['database'], ssl=sslEnable, verify_ssl=sslVerify)
         else:
-            influx = influxdb.InfluxDBClient(host=config['influxDb']['host'], port=config['influxDb']['port'],
+            influx = influxdb.InfluxDBClient(host=config['influxDb']['host'], port=config['influxDb']['port'], timeout=timeout,
                                              database=config['influxDb']['database'], ssl=sslEnable, verify_ssl=sslVerify)
 
         influx.create_database(config['influxDb']['database'])
