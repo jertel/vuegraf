@@ -205,7 +205,7 @@ docker run --name vuegraf -d -v /home/myuser/vuegraf:/opt/vuegraf/conf jertel/vu
 
 Recreate database and load 25 days of history
 ```sh
-docker run --name vuegraf -it -v /home/myuser/vuegraf:/opt/vuegraf/conf jertel/vuegraf --resetdatabase --historydays=24 vuegraf.json
+docker run --name vuegraf -it -v /home/myuser/vuegraf:/opt/vuegraf/conf jertel/vuegraf --resetdatabase --historydays=24 /opt/vuegraf/conf/vuegraf.json
 ```
 
 ## Host Process
