@@ -7,7 +7,7 @@
 - TBD
 
 ## Other changes
-- TBD
+- Fixed encoded characters in influxdb dashboard import
 
 # 1.9.0
 
