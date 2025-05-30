@@ -20,7 +20,7 @@
 			"every": "1m0s",
 			"level": "CRIT",
 			"name": "Energy Data Lost",
-			"query": "from(bucket: \"vue/autogen\")\n  |\u003e range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |\u003e filter(fn: (r) =\u003e r[\"_measurement\"] == \"energy_usage\")\n  |\u003e filter(fn: (r) =\u003e r[\"_field\"] == \"usage\")",
+			"query": "from(bucket: \"vue/autogen\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"energy_usage\")\n  |> filter(fn: (r) => r[\"_field\"] == \"usage\")",
 			"staleTime": "10m0s",
 			"status": "active",
 			"statusMessageTemplate": "Check: ${ r._check_name } is: ${ r._level }",
@@ -36,7 +36,7 @@
 		"spec": {
 			"every": "1m0s",
 			"name": "Power Outage",
-			"query": "from(bucket: \"vuegraf\")\n  |\u003e range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |\u003e filter(fn: (r) =\u003e r[\"_measurement\"] == \"energy_usage\")\n  |\u003e filter(fn: (r) =\u003e r[\"_field\"] == \"usage\")\n  |\u003e filter(fn: (r) =\u003e r[\"detailed\"] == \"False\")\n  |\u003e filter(fn: (r) =\u003e r[\"device_name\"] =~ /Panel/)\n  |\u003e aggregateWindow(every: 1m, fn: max, createEmpty: false)\n  |\u003e yield(name: \"max\")",
+			"query": "from(bucket: \"vuegraf\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"energy_usage\")\n  |> filter(fn: (r) => r[\"_field\"] == \"usage\")\n  |> filter(fn: (r) => r[\"detailed\"] == \"False\")\n  |> filter(fn: (r) => r[\"device_name\"] =~ /Panel/)\n  |> aggregateWindow(every: 1m, fn: max, createEmpty: false)\n  |> yield(name: \"max\")",
 			"status": "active",
 			"statusMessageTemplate": "Check: ${ r._check_name } is: ${ r._level }",
 			"thresholds": [
@@ -248,7 +248,7 @@
 					"name": "Most Recent Combined Usage",
 					"queries": [
 						{
-							"query": "accountFilter = (tables=\u003c-) =\u003e\n  if v.Account != \"(All)\" then\n    tables |\u003e filter(fn: (r) =\u003e r[\"account_name\"] == v.Account)\n  else\n    tables\n\nfrom(bucket: \"vuegraf\")\n  |\u003e range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |\u003e filter(fn: (r) =\u003e r[\"_measurement\"] == \"energy_usage\")\n  |\u003e accountFilter()\n  |\u003e filter(fn: (r) =\u003e r[\"device_name\"] =~ /Panel/ and r[\"device_name\"] !~ /-Balance/)\n  |\u003e filter(fn: (r) =\u003e (r[\"detailed\"] == \"False\"))\n  |\u003e group(columns: [\"_time\"])\n  |\u003e sum()\n  |\u003e map(fn: (r) =\u003e ({ r with _value: r._value / 1000.0}))\n  |\u003e group()\n  |\u003e last()"
+							"query": "accountFilter = (tables=<-) =>\n  if v.Account != \"(All)\" then\n    tables |> filter(fn: (r) => r[\"account_name\"] == v.Account)\n  else\n    tables\n\nfrom(bucket: \"vuegraf\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"energy_usage\")\n  |> accountFilter()\n  |> filter(fn: (r) => r[\"device_name\"] =~ /Panel/ and r[\"device_name\"] !~ /-Balance/)\n  |> filter(fn: (r) => (r[\"detailed\"] == \"False\"))\n  |> group(columns: [\"_time\"])\n  |> sum()\n  |> map(fn: (r) => ({ r with _value: r._value / 1000.0}))\n  |> group()\n  |> last()"
 						}
 					],
 					"staticLegend": {},
@@ -303,7 +303,7 @@
 					"position": "overlaid",
 					"queries": [
 						{
-							"query": "accountFilter = (tables=\u003c-) =\u003e\n  if v.Account != \"(All)\" then\n    tables |\u003e filter(fn: (r) =\u003e r[\"account_name\"] == v.Account)\n  else\n    tables\n\nfrom(bucket: \"vuegraf\")\n  |\u003e range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |\u003e filter(fn: (r) =\u003e r[\"_measurement\"] == \"energy_usage\")\n  |\u003e accountFilter()\n  |\u003e filter(fn: (r) =\u003e r[\"device_name\"] =~ /Panel/ and r[\"device_name\"] !~ /-Balance/)\n  |\u003e filter(fn: (r) =\u003e (r[\"detailed\"] == \"False\"))\n  |\u003e group(columns: [\"_time\"])\n  |\u003e sum()\n  |\u003e map(fn: (r) =\u003e ({ r with _value: r._value / 1000.0}))\n  |\u003e group()"
+							"query": "accountFilter = (tables=<-) =>\n  if v.Account != \"(All)\" then\n    tables |> filter(fn: (r) => r[\"account_name\"] == v.Account)\n  else\n    tables\n\nfrom(bucket: \"vuegraf\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"energy_usage\")\n  |> accountFilter()\n  |> filter(fn: (r) => r[\"device_name\"] =~ /Panel/ and r[\"device_name\"] !~ /-Balance/)\n  |> filter(fn: (r) => (r[\"detailed\"] == \"False\"))\n  |> group(columns: [\"_time\"])\n  |> sum()\n  |> map(fn: (r) => ({ r with _value: r._value / 1000.0}))\n  |> group()"
 						}
 					],
 					"shade": true,
@@ -368,7 +368,7 @@
 					"position": "overlaid",
 					"queries": [
 						{
-							"query": "accountFilter = (tables=\u003c-) =\u003e\n  if v.Account != \"(All)\" then\n    tables |\u003e filter(fn: (r) =\u003e r[\"account_name\"] == v.Account)\n  else\n    tables\n\ndeviceFilter = (tables=\u003c-) =\u003e\n  if v.Device == \"(All)\" then\n    tables |\u003e filter(fn: (r) =\u003e r[\"device_name\"] !~ /Panel/)\n  else\n    tables |\u003e filter(fn: (r) =\u003e r[\"device_name\"] == v.Device)\n\nfrom(bucket: \"vuegraf\")\n  |\u003e range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |\u003e filter(fn: (r) =\u003e r[\"_measurement\"] == \"energy_usage\")\n  |\u003e accountFilter()\n  |\u003e deviceFilter()\n  |\u003e filter(fn: (r) =\u003e (r[\"detailed\"] == \"False\" and r[\"device_name\"] =~ /-Balance/) or (r[\"detailed\"] == v.DetailedDataEnabled and r[\"device_name\"] !~ /-Balance/))\n  |\u003e group(columns: [\"device_name\"])\n  |\u003e aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)\n  |\u003e yield(name: \"mean\")"
+							"query": "accountFilter = (tables=<-) =>\n  if v.Account != \"(All)\" then\n    tables |> filter(fn: (r) => r[\"account_name\"] == v.Account)\n  else\n    tables\n\ndeviceFilter = (tables=<-) =>\n  if v.Device == \"(All)\" then\n    tables |> filter(fn: (r) => r[\"device_name\"] !~ /Panel/)\n  else\n    tables |> filter(fn: (r) => r[\"device_name\"] == v.Device)\n\nfrom(bucket: \"vuegraf\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"energy_usage\")\n  |> accountFilter()\n  |> deviceFilter()\n  |> filter(fn: (r) => (r[\"detailed\"] == \"False\" and r[\"device_name\"] =~ /-Balance/) or (r[\"detailed\"] == v.DetailedDataEnabled and r[\"device_name\"] !~ /-Balance/))\n  |> group(columns: [\"device_name\"])\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)\n  |> yield(name: \"mean\")"
 						}
 					],
 					"shade": true,
@@ -402,7 +402,7 @@
 					"name": "Accumulated Combined Usage",
 					"queries": [
 						{
-							"query": "accountFilter = (tables=\u003c-) =\u003e\n  if v.Account != \"(All)\" then\n    tables |\u003e filter(fn: (r) =\u003e r[\"account_name\"] == v.Account)\n  else\n    tables\n\nfrom(bucket: \"vuegraf\")\n  |\u003e range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |\u003e filter(fn: (r) =\u003e r[\"_measurement\"] == \"energy_usage\")\n  |\u003e accountFilter()\n  |\u003e filter(fn: (r) =\u003e r[\"device_name\"] =~ /Panel/ and r[\"device_name\"] !~ /-Balance/)\n  |\u003e filter(fn: (r) =\u003e (r[\"detailed\"] == \"False\"))\n  |\u003e group(columns: [\"_time\"])\n  |\u003e sum()\n  |\u003e map(fn: (r) =\u003e ({ r with _value: (r._value / 60000.0)}))\n  |\u003e group()\n  |\u003e sum()"
+							"query": "accountFilter = (tables=<-) =>\n  if v.Account != \"(All)\" then\n    tables |> filter(fn: (r) => r[\"account_name\"] == v.Account)\n  else\n    tables\n\nfrom(bucket: \"vuegraf\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"energy_usage\")\n  |> accountFilter()\n  |> filter(fn: (r) => r[\"device_name\"] =~ /Panel/ and r[\"device_name\"] !~ /-Balance/)\n  |> filter(fn: (r) => (r[\"detailed\"] == \"False\"))\n  |> group(columns: [\"_time\"])\n  |> sum()\n  |> map(fn: (r) => ({ r with _value: (r._value / 60000.0)}))\n  |> group()\n  |> sum()"
 						}
 					],
 					"staticLegend": {},
@@ -426,7 +426,7 @@
 					"prefix": "$",
 					"queries": [
 						{
-							"query": "accountFilter = (tables=\u003c-) =\u003e\n  if v.Account != \"(All)\" then\n    tables |\u003e filter(fn: (r) =\u003e r[\"account_name\"] == v.Account)\n  else\n    tables\n\nfrom(bucket: \"vuegraf\")\n  |\u003e range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |\u003e filter(fn: (r) =\u003e r[\"_measurement\"] == \"energy_usage\")\n  |\u003e accountFilter()\n  |\u003e filter(fn: (r) =\u003e r[\"device_name\"] =~ /Panel/ and r[\"device_name\"] !~ /-Balance/)\n  |\u003e filter(fn: (r) =\u003e (r[\"detailed\"] == \"False\"))\n  |\u003e group(columns: [\"_time\"])\n  |\u003e sum()\n  |\u003e map(fn: (r) =\u003e ({ r with _value: (r._value / 60000.0) * float(v: v.CostPerkWh)}))\n  |\u003e group()\n  |\u003e sum()"
+							"query": "accountFilter = (tables=<-) =>\n  if v.Account != \"(All)\" then\n    tables |> filter(fn: (r) => r[\"account_name\"] == v.Account)\n  else\n    tables\n\nfrom(bucket: \"vuegraf\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"energy_usage\")\n  |> accountFilter()\n  |> filter(fn: (r) => r[\"device_name\"] =~ /Panel/ and r[\"device_name\"] !~ /-Balance/)\n  |> filter(fn: (r) => (r[\"detailed\"] == \"False\"))\n  |> group(columns: [\"_time\"])\n  |> sum()\n  |> map(fn: (r) => ({ r with _value: (r._value / 60000.0) * float(v: v.CostPerkWh)}))\n  |> group()\n  |> sum()"
 						}
 					],
 					"staticLegend": {},
@@ -548,7 +548,7 @@
 					"name": "Alarm Status",
 					"queries": [
 						{
-							"query": "from(bucket: \"_monitoring\")\n  |\u003e range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |\u003e filter(fn: (r) =\u003e r[\"_measurement\"] == \"statuses\")\n  |\u003e filter(fn: (r) =\u003e r[\"_field\"] == \"_message\")\n  |\u003e filter(fn: (r) =\u003e r[\"detailed\"] == \"False\")\n  |\u003e drop(columns: [\"_value\"])\n  |\u003e duplicate(column: \"_level\", as: \"_value\")\n  |\u003e map(fn: (r) =\u003e ({ r with _value: if r._value == \"ok\" then 0 else if r._value == \"info\" then 1 else if r._value == \"warn\" then 2 else 3 }))\n  |\u003e group(columns: [\"_check_id\"])\n  |\u003e sort(columns: [\"_time\"])\n  |\u003e last()\n  |\u003e group()\n  |\u003e keep(columns: [\"_check_name\",\"_level\",\"_value\"])"
+							"query": "from(bucket: \"_monitoring\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"statuses\")\n  |> filter(fn: (r) => r[\"_field\"] == \"_message\")\n  |> filter(fn: (r) => r[\"detailed\"] == \"False\")\n  |> drop(columns: [\"_value\"])\n  |> duplicate(column: \"_level\", as: \"_value\")\n  |> map(fn: (r) => ({ r with _value: if r._value == \"ok\" then 0 else if r._value == \"info\" then 1 else if r._value == \"warn\" then 2 else 3 }))\n  |> group(columns: [\"_check_id\"])\n  |> sort(columns: [\"_time\"])\n  |> last()\n  |> group()\n  |> keep(columns: [\"_check_name\",\"_level\",\"_value\"])"
 						}
 					],
 					"staticLegend": {},
