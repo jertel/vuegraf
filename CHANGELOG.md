@@ -7,7 +7,7 @@
 - TBD
 
 ## Other changes
-- TBD
+- Fixed encoded characters in influxdb dashboard import - [#191](https://github.com/jertel/vuegraf/pull/191) - @toosmooth
 
 # 1.9.0
 
