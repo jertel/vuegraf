@@ -20,7 +20,7 @@
 			"every": "1m0s",
 			"level": "CRIT",
 			"name": "Energy Data Lost",
-			"query": "from(bucket: \"vue/autogen\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"energy_usage\")\n  |> filter(fn: (r) => r[\"_field\"] == \"usage\")",
+			"query": "from(bucket: \"vuegraf\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"energy_usage\")\n  |> filter(fn: (r) => r[\"_field\"] == \"usage\")",
 			"staleTime": "10m0s",
 			"status": "active",
 			"statusMessageTemplate": "Check: ${ r._check_name } is: ${ r._level }",
