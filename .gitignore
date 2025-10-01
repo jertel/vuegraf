@@ -10,6 +10,7 @@ virtualenv_run/
 dist/
 venv/
 env/
+.envrc
 build/
 .pytest_cache/
 *.swp
