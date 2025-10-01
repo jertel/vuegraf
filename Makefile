@@ -9,9 +9,6 @@ production:
 
 dev: $(LOCAL_CONFIG_DIR) $(LOGS_DIR) install-hooks
 
-install-hooks:
-	pre-commit install -f --install-hooks
-
 test:
 	tox -c tox.ini
 
