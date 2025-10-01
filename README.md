@@ -414,7 +414,28 @@ There are additional steps necessary for making this configuration fault toleran
 - Much more!
 
 These topics are out of scope of this project, but are intended to help new system administrators understand different areas that need to be considered for ensuring disaster recovery and prevention of vulnerabilities.
- 
+
+# Developer Setup
+
+Set up a virtual environment with Python >= 3.12. Then to run in your virtual environment and pick up local changes:
+
+```sh
+python3 -m pip install -r src/requirements-dev.txt -r src/requirements.txt
+python3 -m pip install -e .  # install the package from setup.py
+cp vuegraf.json.sample vuegraf.json  # and edit
+python3 -m vuegraf.vuegraf vuegraf.json
+```
+
+And when making changes:
+
+```sh
+make install-hooks  # one-time setup
+# git checkout -b mybranch
+# edit
+pytest  # at least before sending a PR
+# git commit && git push
+```
+
 # License
 
 Vuegraf is distributed under the MIT license.
