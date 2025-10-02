@@ -124,7 +124,7 @@ def initConfig():
     sanitized_config = config.copy()
     sanitized_config.pop('influxDb', None)
     sanitized_config.pop('accounts', None)
-    sanitized_config.pop('mqqt', None)
+    sanitized_config.pop('mqtt', None)
 
     config['args'] = args
     verbose = False

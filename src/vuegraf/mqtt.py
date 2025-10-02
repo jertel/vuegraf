@@ -3,11 +3,11 @@
 Uses the Eclipse paho-mqtt client:
 https://eclipse.dev/paho/files/paho.mqtt.python/html/client.html
 """
-
+import json
+import logging
 from paho.mqtt import client
 
-import logging
-
+from vuegraf.config import getConfigValue
 
 logger = logging.getLogger('vuegraf.mqtt')
 
@@ -29,7 +29,7 @@ def initMqttConnectionIfConfigured(config) -> None:
     )
   topic = mqtt_config.get("topic")
   if not topic:
-    topic = "vuegraf/topic"
+    topic = "vuegraf/energy_usage"
     # Write back to the config so the publish call has access.
     mqtt_config["topic"] = topic
 
@@ -45,18 +45,29 @@ def initMqttConnectionIfConfigured(config) -> None:
 
 
 def publishMqttMessagesIfConnected(config, usageDataPoints) -> None:
+  """Publishes usage value message to MQTT from collect.Point value list."""
   mqttc = config.get("mqtt", {}).get("client")
   if not mqttc:
-    logger.info("No MQTT client, skipping publish.")
+    logger.debug("No MQTT client configured, skipping publish.")
     return
   topic = config["mqtt"]["topic"]
 
+  addStationField = getConfigValue(config, "addStationField")
+
   # Use the default fire-and-forget QOS of 0, since we expect to send frequently
   # as Vue power values are updated.
-  logger.info(f"MQTT client publish\n{usageDataPoints[0].to_line_protocol()}")
   msg_infos = []
-  for point in usageDataPoints:
-    msg_infos.append(mqttc.publish(topic, point.to_line_protocol()))
+  for pt in usageDataPoints:
+    message = {
+      "account": pt.accountName,
+      "device_name": pt.chanName,
+      "usage_watts": pt.usageWatts,
+      "epoch_s": pt.timestamp.timestamp(),  # epoch seconds
+      "detailed": pt.detailed,
+    }
+    if addStationField:
+      message["station"] = pt.deviceName
+    msg_infos.append(mqttc.publish(topic, json.dumps(message)))
   for msg_info in msg_infos:
     msg_info.wait_for_publish()
 
@@ -64,7 +75,7 @@ def publishMqttMessagesIfConnected(config, usageDataPoints) -> None:
 def stopMqttIfConnected(config) -> None:
   mqttc = config.get("mqtt", {}).get("client")
   if not mqttc:
-    logger.info("No MQTT client, skipping disconnect.")
+    logger.info("No MQTT client configured, skipping disconnect.")
     return
 
   mqttc.disconnect()  # also stops background thread
