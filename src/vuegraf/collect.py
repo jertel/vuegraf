@@ -16,8 +16,12 @@ from vuegraf.time import calculateHistoryTimeRange, convertToLocalDayInUTC
 logger = logging.getLogger('vuegraf.data')
 
 
-def extractDataPoints(config, account, device, stopTimeUTC, collectDetails, usageDataPoints,
+def extractDataPoints(config, account, device, stopTimeUTC, collectDetails, usageDataPoints: list,
                       detailedStartTimeUTC, pointType=None, historyStartTimeUTC=None, historyEndTimeUTC=None):
+    """Unpacks Vue API usage data from a fetched device. Module use only.
+
+    Modifies usageDataPoints in place, appending Influx Point objects.
+    """
     accountName = account['name']
     detailedDataEnabled = getConfigValue(config, 'detailedDataEnabled')
     detailedSecondsEnabled = detailedDataEnabled and getConfigValue(config, 'detailedDataSecondsEnabled')
@@ -153,7 +157,11 @@ def extractDataPoints(config, account, device, stopTimeUTC, collectDetails, usag
                 index += 1
 
 
-def collectUsage(config, account, startTimeUTC, stopTimeUTC, collectDetails, usageDataPoints, detailedStartTimeUTC, scale):
+def collectUsage(config, account, startTimeUTC, stopTimeUTC, collectDetails, usageDataPoints: list, detailedStartTimeUTC, scale):
+    """Module entrypoint. Fetch Vue data and unpack it into points.
+
+    The usageDataPoints list is modified in place, appending points.
+    """
     _, _, _, tagValue_hour, tagValue_day = getInfluxTag(config)
     if scale == Scale.HOUR.value:
         pointType = tagValue_hour
@@ -173,6 +181,7 @@ def collectUsage(config, account, startTimeUTC, stopTimeUTC, collectDetails, usa
 
 
 def collectHistoryUsage(config, account, startTimeUTC, stopTimeUTC, usageDataPoints, pauseEvent):
+    """Module entrypoint. Fetches historic Vue data and unpacks it into points."""
     # Grab base usage data for later use in history collection
     deviceGids = list(account['deviceIdMap'].keys())
     usages = account['vue'].get_device_list_usage(deviceGids, stopTimeUTC, scale=Scale.MINUTE.value, unit=Unit.KWH.value)
