@@ -223,7 +223,7 @@ There are additional keys for authentication and topic customization:
     }
 ```
 
-By default, messages with be to the `vuegraf/energy_usage` topic. An example showing the structure:
+By default, messages will be sent to the `vuegraf/energy_usage` topic. An example showing the structure:
 
 ```json
 {"account": "Vue Account", "device_name": "Left Panel-7", "usage_watts": 275.02, "epoch_s": 1759441380, "detailed": "False"}
