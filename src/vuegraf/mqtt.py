@@ -48,7 +48,7 @@ def initMqttConnectionIfConfigured(config) -> None:
 def _retainOnlyLatestPointPerChannel(points: list) -> list:
   acctAndChanToPoints = defaultdict(list)
   for pt in points:
-    acctAndChanToPoints[(pt.accountName, pt.chanName)].append(pt)
+    acctAndChanToPoints[(pt.accountName, pt.deviceName, pt.chanName)].append(pt)
   return [
     max(points, key=lambda pt: pt.timestamp)
     for points in acctAndChanToPoints.values()
@@ -85,7 +85,7 @@ def publishMqttMessagesIfConnected(config, usageDataPoints: list) -> None:
       "account": pt.accountName,
       "device_name": pt.chanName,
       "usage_watts": pt.usageWatts,
-      "epoch_s": pt.timestamp.timestamp(),  # epoch seconds
+      "epoch_s": int(pt.timestamp.timestamp()),  # epoch seconds
       "detailed": pt.detailed,
     }
     if addStationField:
