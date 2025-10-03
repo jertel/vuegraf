@@ -1,8 +1,11 @@
-"""Send Vue usage data to an MQTT pubsub.
+# Copyright (c) Jason Ertel (jertel).
+# This file is part of the Vuegraf project and is made available under the MIT License.
 
-Uses the Eclipse paho-mqtt client:
-https://eclipse.dev/paho/files/paho.mqtt.python/html/client.html
-"""
+# This module sends Vue usage data to an MQTT pubsub.
+#
+# It is implemented using the Eclipse paho-mqtt client:
+# https://eclipse.dev/paho/files/paho.mqtt.python/html/client.html
+
 from collections import defaultdict
 import json
 import logging
