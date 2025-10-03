@@ -3,6 +3,7 @@
 Uses the Eclipse paho-mqtt client:
 https://eclipse.dev/paho/files/paho.mqtt.python/html/client.html
 """
+from collections import defaultdict
 import json
 import logging
 from paho.mqtt import client
@@ -44,8 +45,23 @@ def initMqttConnectionIfConfigured(config) -> None:
   logger.info(f"MQTT client set up to publish to {mqtt_host} on {topic}.")
 
 
-def publishMqttMessagesIfConnected(config, usageDataPoints) -> None:
-  """Publishes usage value message to MQTT from collect.Point value list."""
+def _retainOnlyLatestPointPerChannel(points: list) -> list:
+  acctAndChanToPoints = defaultdict(list)
+  for pt in points:
+    acctAndChanToPoints[(pt.accountName, pt.chanName)].append(pt)
+  return [
+    max(points, key=lambda pt: pt.timestamp)
+    for points in acctAndChanToPoints.values()
+  ]
+
+
+def publishMqttMessagesIfConnected(config, usageDataPoints: list) -> None:
+  """Publishes usage value message to MQTT from collect.Point value list.
+
+  Only publishes the latest point in a batch for each account+channel combo.
+  Whereas Influx wants to have a complete picture, MQTT only wants to publish
+  the current values, so we can skip historic updates.
+  """
   mqttc = config.get("mqtt", {}).get("client")
   if not mqttc:
     logger.debug("No MQTT client configured, skipping publish.")
@@ -54,10 +70,17 @@ def publishMqttMessagesIfConnected(config, usageDataPoints) -> None:
 
   addStationField = getConfigValue(config, "addStationField")
 
+  latestPoints = _retainOnlyLatestPointPerChannel(usageDataPoints)
+  if len(usageDataPoints) != len(latestPoints):
+    logger.info(
+      f"MQTT filtering {len(usageDataPoints)} total points to"
+      f" {len(latestPoints)} latest points per channel."
+    )
+
   # Use the default fire-and-forget QOS of 0, since we expect to send frequently
   # as Vue power values are updated.
   msg_infos = []
-  for pt in usageDataPoints:
+  for pt in latestPoints:
     message = {
       "account": pt.accountName,
       "device_name": pt.chanName,
