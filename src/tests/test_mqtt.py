@@ -123,17 +123,36 @@ def test_publish_converts_point(mock_client_class, station_field, topic):
   if topic is not None:
     config["mqtt"]["topic"] = topic
   mqtt.initMqttConnectionIfConfigured(config)
-  point = Point("account", "device", "chan_a", 9.0, TIMESTAMP, "Minute")
+  point = Point("account", "device", "chan", 9.0, TIMESTAMP, "Minute")
 
   mqtt.publishMqttMessagesIfConnected(config, [point])
 
   mqttc = config["mqtt"]["client"]
   mqttc.publish.assert_called_once_with(
     topic or "vuegraf/energy_usage",
-    '{"account": "account", "device_name": "chan_a", "usage_watts": 9.0, "epoch_s": 1704888030, "detailed": "Minute"'
+    '{"account": "account", "device_name": "chan", "usage_watts": 9.0, "epoch_s": 1704888030, "detailed": "Minute"'
     + (', "station": "device"' if station_field else '')
     + '}',
   )
+
+
+@patch('paho.mqtt.client.Client')
+def test_publish_converts_point_and_drops_dup(mock_client_class):
+  """Exercises the branch for logging when a point is filtered out.
+
+  This is for pytets coverage of branches. Filtering itself is tested separately,
+  but this covers the resulting logic in the publish function.
+  """
+  config = copy.deepcopy(CONFIG)
+  config["addStationField"] = False
+  mqtt.initMqttConnectionIfConfigured(config)
+  early = Point("account", "device", "chan", 9.0, TIMESTAMP - datetime.timedelta(minutes=1), "Minute")
+  late = Point("account", "device", "chan", 9.0, TIMESTAMP, "Minute")
+
+  mqtt.publishMqttMessagesIfConnected(config, [early, late])
+
+  mqttc = config["mqtt"]["client"]
+  mqttc.publish.assert_called_once()
 
 
 def test_disconnect_no_error_if_not_connected():
