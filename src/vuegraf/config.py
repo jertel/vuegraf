@@ -120,9 +120,11 @@ def initConfig():
     setConfigDefault(config, 'maxHistoryDays', 720)
     setConfigDefault(config, 'updateIntervalSecs', 60)
 
-    sanitized_config = config.copy()  # Create a sanitized copy for logging
-    sanitized_config.pop('influxDb', None)  # Remove sensitive information from the config for logging
-    sanitized_config.pop('accounts', None)  # Remove sensitive information from the config for logging
+    # Create a sanitized copy for logging and remove sensitive information from it
+    sanitized_config = config.copy()
+    sanitized_config.pop('influxDb', None)
+    sanitized_config.pop('accounts', None)
+    sanitized_config.pop('mqtt', None)
 
     config['args'] = args
     verbose = False

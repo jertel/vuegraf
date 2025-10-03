@@ -4,20 +4,41 @@
 # Contains logic relating to collection of data usage from Emporia cloud
 
 import datetime
+from dataclasses import dataclass
 import logging
+from typing import Union
+
 from pyemvue.enums import Scale, Unit
 
 from vuegraf.config import getConfigValue, getInfluxTag
 from vuegraf.device import lookupDeviceName, lookupChannelName
-from vuegraf.influx import createDataPoint, getLastDBTimeStamp
+from vuegraf.influx import getLastDBTimeStamp
 from vuegraf.time import calculateHistoryTimeRange, convertToLocalDayInUTC
 
 
 logger = logging.getLogger('vuegraf.data')
 
 
-def extractDataPoints(config, account, device, stopTimeUTC, collectDetails, usageDataPoints,
+@dataclass
+class Point:
+    """Container for timestamped device readings from Vue.
+
+    These can be repacked by Influx and MQTT when writing to those engines.
+    """
+    accountName: str
+    deviceName: str  # aka station; the Vue, smart plug, etc
+    chanName: str  # for example, each circuit or the total/balance
+    usageWatts: float
+    timestamp: datetime.datetime  # zone aware, UTC
+    detailed: Union[bool, str]  # 'Minutes', 'Days', etc or False
+
+
+def extractDataPoints(config, account, device, stopTimeUTC, collectDetails, usageDataPoints: list[Point],
                       detailedStartTimeUTC, pointType=None, historyStartTimeUTC=None, historyEndTimeUTC=None):
+    """Unpacks Vue API usage data from a fetched device. Module use only.
+
+    Modifies usageDataPoints in place, appending Point objects.
+    """
     accountName = account['name']
     detailedDataEnabled = getConfigValue(config, 'detailedDataEnabled')
     detailedSecondsEnabled = detailedDataEnabled and getConfigValue(config, 'detailedDataSecondsEnabled')
@@ -45,7 +66,7 @@ def extractDataPoints(config, account, device, stopTimeUTC, collectDetails, usag
                 if not minuteHistoryEnabled or chanNum in excludedDetailChannelNumbers:
                     watts = float(minutesInAnHour * wattsInAKw) * kwhUsage
                     timestamp = stopTimeUTC.replace(second=0)
-                    usageDataPoints.append(createDataPoint(config, accountName, deviceName, chanName, watts, timestamp, tagValue_minute))
+                    usageDataPoints.append(Point(accountName, deviceName, chanName, watts, timestamp, tagValue_minute))
                 elif chanNum not in excludedDetailChannelNumbers and historyStartTimeUTC is None:
                     # Still missing recent minute history, attempt to collect in batches of 12 hours
                     noDataFlag = True
@@ -64,8 +85,12 @@ def extractDataPoints(config, account, device, stopTimeUTC, collectDetails, usag
                             noDataFlag = False  # Got at least one datapoint.  Set boolean value so we don't loop back
                             timestamp = usage_start_time + datetime.timedelta(minutes=index)
                             watts = float(minutesInAnHour * wattsInAKw) * kwhUsage
-                            usageDataPoints.append(createDataPoint(config, accountName, deviceName, chanName, watts,
-                                                                   timestamp, tagValue_minute))
+                            usageDataPoints.append(
+                                Point(
+                                    accountName, deviceName, chanName, watts,
+                                    timestamp, tagValue_minute
+                                )
+                            )
                             index += 1
                         if noDataFlag:
                             # Opps!  No data points found for the time interval in question ('None' returned for ALL values)
@@ -85,12 +110,12 @@ def extractDataPoints(config, account, device, stopTimeUTC, collectDetails, usag
                 # Collect previous day averages
                 watts = kwhUsage * wattsInAKw
                 timestamp = convertToLocalDayInUTC(config, historyStartTimeUTC)
-                usageDataPoints.append(createDataPoint(config, accountName, deviceName, chanName, watts, timestamp, pointType))
+                usageDataPoints.append(Point(accountName, deviceName, chanName, watts, timestamp, pointType))
             elif pointType == tagValue_hour:
                 # Collect previous hour averages
                 watts = kwhUsage * wattsInAKw
                 timestamp = historyStartTimeUTC
-                usageDataPoints.append(createDataPoint(config, accountName, deviceName, chanName, watts, timestamp, pointType))
+                usageDataPoints.append(Point(accountName, deviceName, chanName, watts, timestamp, pointType))
 
         if chanNum in excludedDetailChannelNumbers:
             continue
@@ -111,7 +136,7 @@ def extractDataPoints(config, account, device, stopTimeUTC, collectDetails, usag
                     continue
                 timestamp = usageStartTimeUTC + datetime.timedelta(seconds=index)
                 watts = float(secondsInAMinute * minutesInAnHour * wattsInAKw) * kwhUsage
-                usageDataPoints.append(createDataPoint(config, accountName, deviceName, chanName, watts, timestamp, tagValue_second))
+                usageDataPoints.append(Point(accountName, deviceName, chanName, watts, timestamp, tagValue_second))
                 index += 1
 
         # Fetches historical Hour & Day data
@@ -130,7 +155,7 @@ def extractDataPoints(config, account, device, stopTimeUTC, collectDetails, usag
                     continue
                 timestamp = usageStartTimeUTC + datetime.timedelta(hours=index)
                 watts = kwhUsage * wattsInAKw
-                usageDataPoints.append(createDataPoint(config, accountName, deviceName, chanName,
+                usageDataPoints.append(Point(accountName, deviceName, chanName,
                                        watts, timestamp, tagValue_hour))
                 index += 1
 
@@ -149,11 +174,15 @@ def extractDataPoints(config, account, device, stopTimeUTC, collectDetails, usag
                 timestamp = convertToLocalDayInUTC(config, usageStartTimeUTC + datetime.timedelta(hours=6, days=index))
 
                 watts = kwhUsage * wattsInAKw
-                usageDataPoints.append(createDataPoint(config, accountName, deviceName, chanName, watts, timestamp, tagValue_day))
+                usageDataPoints.append(Point(accountName, deviceName, chanName, watts, timestamp, tagValue_day))
                 index += 1
 
 
-def collectUsage(config, account, startTimeUTC, stopTimeUTC, collectDetails, usageDataPoints, detailedStartTimeUTC, scale):
+def collectUsage(config, account, startTimeUTC, stopTimeUTC, collectDetails, usageDataPoints: list[Point], detailedStartTimeUTC, scale):
+    """Module entrypoint. Fetch Vue data and unpack it into points.
+
+    The usageDataPoints list is modified in place, appending Points.
+    """
     _, _, _, tagValue_hour, tagValue_day = getInfluxTag(config)
     if scale == Scale.HOUR.value:
         pointType = tagValue_hour
@@ -172,7 +201,8 @@ def collectUsage(config, account, startTimeUTC, stopTimeUTC, collectDetails, usa
                               usageDataPoints, detailedStartTimeUTC, pointType, startTimeUTC)
 
 
-def collectHistoryUsage(config, account, startTimeUTC, stopTimeUTC, usageDataPoints, pauseEvent):
+def collectHistoryUsage(config, account, startTimeUTC, stopTimeUTC, usageDataPoints: list[Point], pauseEvent):
+    """Module entrypoint. Fetches historic Vue data and unpacks it into points."""
     # Grab base usage data for later use in history collection
     deviceGids = list(account['deviceIdMap'].keys())
     usages = account['vue'].get_device_list_usage(deviceGids, stopTimeUTC, scale=Scale.MINUTE.value, unit=Unit.KWH.value)

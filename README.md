@@ -191,6 +191,44 @@ If you intend to run multiple Vue systems under the same account, where the chan
 
 Note that enabling this at a later time will cause issues due to queries matching multiple records. Therefore if you are installing Vuegraf for the first time and think this could be useful then enable it at the start.
 
+### MQTT
+
+In addition to publishing to Influx, you can send pubsub messages to a MQTT server such as [Mosquitto](https://mosquitto.org/). MQTT only sends the latest timestamped value per channel in each batch (so it will not flood the topic with historical messages when `vuegraf` starts). The minimal config  would just add the host:
+
+```json
+{
+    "influxDb": {
+        ...
+    },
+    "accounts": [
+        {
+            ...
+        }
+    ],
+    "mqtt": {
+      "host": "my.mqtt.host"
+    }
+}
+```
+
+There are additional keys for authentication and topic customization:
+
+```json
+    "mqtt": {
+      "host": "my.mqtt.host",
+      "port": 8999,
+      "username": "my_mqtt_user",
+      "password": "my_mqtt_pw",
+      "topic": "custom/vue/topic/for/energy_usage"
+    }
+```
+
+By default, messages will be sent to the `vuegraf/energy_usage` topic. An example showing the structure:
+
+```json
+{"account": "Vue Account", "device_name": "Left Panel-7", "usage_watts": 275.02, "epoch_s": 1759441380, "detailed": "False"}
+```
+
 # Running
 Vuegraf can be run either as a container (recommended), or as a host process.
 
@@ -414,7 +452,20 @@ There are additional steps necessary for making this configuration fault toleran
 - Much more!
 
 These topics are out of scope of this project, but are intended to help new system administrators understand different areas that need to be considered for ensuring disaster recovery and prevention of vulnerabilities.
- 
+
+# Developer Setup
+
+Set up a virtual environment with Python >= 3.12. Then to run in your virtual environment and pick up local changes:
+
+```sh
+python3 -m pip install -r src/requirements-dev.txt -r src/requirements.txt
+python3 -m pip install -e .  # install the package from setup.py
+cp vuegraf.json.sample vuegraf.json  # and edit
+python3 -m vuegraf.vuegraf vuegraf.json
+```
+
+After making changes, you can run `pytest` from the root project directory to run all unit tests, or `make test-docker` for a containerized test setup. Also check test coverage and flake8 (commands in [`tox.ini`](src/tox.ini) are used by `test-docker`).
+
 # License
 
 Vuegraf is distributed under the MIT license.

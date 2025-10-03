@@ -16,7 +16,15 @@ from vuegraf.time import getTimeNow
 logger = logging.getLogger('vuegraf.influx')
 
 
-def createDataPoint(config, accountName, deviceName, chanName, watts, timestamp, detailed):
+def createDataPoint(config, pt):
+    """Creates appropriate Influx structure from a collect.Point."""
+    accountName = pt.accountName
+    deviceName = pt.deviceName
+    chanName = pt.chanName
+    watts = pt.usageWatts
+    timestamp = pt.timestamp
+    detailed = pt.detailed
+
     influxVersion = getInfluxVersion(config)
     tagName, tagValue_second, tagValue_minute, tagValue_hour, tagValue_day = getInfluxTag(config)
     addStationField = getConfigValue(config, 'addStationField')
@@ -203,10 +211,15 @@ def initInfluxConnection(config):
 
 
 def writeInfluxPoints(config, usageDataPoints):
+    """Writes a list of collect.Point objects to the Influx db.
+
+    Converts to the appropriate internal Influx data format for writing.
+    """
     # Write to database after each historical batch to prevent timeout issues on large history intervals.
     logger.info('Submitting datapoints to database; points={}'.format(len(usageDataPoints)))
+    influxPoints = [createDataPoint(config, pt) for pt in usageDataPoints]
     if config['args'].debug:
-        dumpPoints(config, "Sending to database", usageDataPoints)
+        dumpPoints(config, "Sending to database", influxPoints)
     if config['args'].dryrun:
         logger.info('Dryrun mode enabled.  Skipping database write.')
     else:
@@ -214,9 +227,9 @@ def writeInfluxPoints(config, usageDataPoints):
         if influxVersion == 2:
             bucket = config['influxDb']['bucket']
             write_api = config['influx'].write_api(write_options=influxdb_client.client.write_api.SYNCHRONOUS)
-            write_api.write(bucket=bucket, record=usageDataPoints)
+            write_api.write(bucket=bucket, record=influxPoints)
         else:
-            config['influx'].write_points(usageDataPoints, batch_size=5000)
+            config['influx'].write_points(influxPoints, batch_size=5000)
 
 
 def dumpPoints(config, label, usageDataPoints):

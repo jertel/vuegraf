@@ -1,10 +1,10 @@
-# 1.9.0
+# 1.10.0
 
 ## Breaking changes
 - TBD
 
 ## New features
-- TBD
+- Added support for writing events to MQTT as well as Influx. - [#201](https://github.com/jertel/vuegraf/pull/201) - @markfickett
 
 ## Other changes
 - Fixed encoded characters in influxdb dashboard import - [#191](https://github.com/jertel/vuegraf/pull/191) - @toosmooth

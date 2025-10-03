@@ -11,8 +11,8 @@ and graceful shutdown.
 __author__ = 'https://github.com/jertel'
 __license__ = 'MIT'
 __contributors__ = 'https://github.com/jertel/vuegraf/graphs/contributors'
-__version__ = '1.9.0'
-__versiondate__ = '2025/04/05'
+__version__ = '1.10.0'
+__versiondate__ = '2025/10/02'
 __maintainer__ = 'https://github.com/jertel'
 __status__ = 'Production'
 
@@ -29,6 +29,11 @@ from vuegraf.collect import collectHistoryUsage, collectUsage
 from vuegraf.config import getConfigValue, initConfig
 from vuegraf.device import initDeviceAccount
 from vuegraf.influx import initInfluxConnection, writeInfluxPoints
+from vuegraf.mqtt import (
+  initMqttConnectionIfConfigured,
+  publishMqttMessagesIfConnected,
+  stopMqttIfConnected,
+)
 from vuegraf.time import getCurrentHourUTC, getCurrentDayLocal, getTimeNow
 
 
@@ -43,6 +48,7 @@ def run():
     logger.info('Starting Vuegraf version {}'.format(__version__))
 
     initInfluxConnection(config)
+    initMqttConnectionIfConfigured(config)
 
     detailedStartTimeUTC = getTimeNow(datetime.UTC)
 
@@ -118,6 +124,7 @@ def run():
 
         # Save accumulated data points into InfluxDB
         writeInfluxPoints(config, usageDataPoints)
+        publishMqttMessagesIfConnected(config, usageDataPoints)
 
         if collectDetails:
             detailedStartTimeUTC = nowLagUTC + datetime.timedelta(seconds=1)
@@ -128,6 +135,7 @@ def run():
         # Sleep for the specified interval before starting the next collection
         pauseEvent.wait(intervalSecs)
 
+    stopMqttIfConnected(config)
     logger.info('Finished')
 
 
