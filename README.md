@@ -464,7 +464,7 @@ cp vuegraf.json.sample vuegraf.json  # and edit
 python3 -m vuegraf.vuegraf vuegraf.json
 ```
 
-After making changes, you can run `pytest` from the root project directory to run all unit tests, or `make test-docker` for a containerized test setup.
+After making changes, you can run `pytest` from the root project directory to run all unit tests, or `make test-docker` for a containerized test setup. Also check test coverage and flake8 (commands in [`tox.ini`](src/tox.ini) are used by `test-docker`).
 
 # License
 
