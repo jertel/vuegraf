@@ -196,8 +196,10 @@ class TestCollect(TestCase):
         # Check the point created is for the 'Balance' channel
         expected_watts_balance = 0.02 * 60 * 1000  # 1200W
         expected_timestamp_balance = self.stop_time_utc.replace(second=0, microsecond=0)
-        expected_point_balance = Point('TestAccount', 'TestDevice1', 'BalanceChannel', expected_watts_balance,
-                                  expected_timestamp_balance, 'Minutes')
+        expected_point_balance = Point(
+            'TestAccount', 'TestDevice1', 'BalanceChannel', expected_watts_balance,
+            expected_timestamp_balance, 'Minutes'
+        )
         # Assert a single Point was generated (for the 'Balance' channel)
         self.assertEqual(self.usage_data_points[0], expected_point_balance)
 

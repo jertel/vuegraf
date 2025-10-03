@@ -21,16 +21,16 @@ logger = logging.getLogger('vuegraf.data')
 
 @dataclass
 class Point:
-  """Container for timestamped device readings from Vue.
+    """Container for timestamped device readings from Vue.
 
-  These can be repacked by Influx and MQTT when writing to those engines.
-  """
-  accountName: str
-  deviceName: str  # aka station; the Vue, smart plug, etc
-  chanName: str  # for example, each circuit or the total/balance
-  usageWatts: float
-  timestamp: datetime.datetime  # zone aware, UTC
-  detailed: Union[bool, str]  # 'Minutes', 'Days', etc or False
+    These can be repacked by Influx and MQTT when writing to those engines.
+    """
+    accountName: str
+    deviceName: str  # aka station; the Vue, smart plug, etc
+    chanName: str  # for example, each circuit or the total/balance
+    usageWatts: float
+    timestamp: datetime.datetime  # zone aware, UTC
+    detailed: Union[bool, str]  # 'Minutes', 'Days', etc or False
 
 
 def extractDataPoints(config, account, device, stopTimeUTC, collectDetails, usageDataPoints: list[Point],
@@ -85,8 +85,12 @@ def extractDataPoints(config, account, device, stopTimeUTC, collectDetails, usag
                             noDataFlag = False  # Got at least one datapoint.  Set boolean value so we don't loop back
                             timestamp = usage_start_time + datetime.timedelta(minutes=index)
                             watts = float(minutesInAnHour * wattsInAKw) * kwhUsage
-                            usageDataPoints.append(Point(accountName, deviceName, chanName, watts,
-                                                                   timestamp, tagValue_minute))
+                            usageDataPoints.append(
+                                Point(
+                                    accountName, deviceName, chanName, watts,
+                                    timestamp, tagValue_minute
+                                )
+                            )
                             index += 1
                         if noDataFlag:
                             # Opps!  No data points found for the time interval in question ('None' returned for ALL values)
