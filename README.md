@@ -464,15 +464,7 @@ cp vuegraf.json.sample vuegraf.json  # and edit
 python3 -m vuegraf.vuegraf vuegraf.json
 ```
 
-And when making changes:
-
-```sh
-make install-hooks  # one-time setup
-# git checkout -b mybranch
-# edit
-pytest  # at least before sending a PR
-# git commit && git push
-```
+After making changes, you can run `pytest` from the root project directory to run all unit tests, or `make test-docker` for a containerized test setup.
 
 # License
 
