@@ -6,6 +6,8 @@
 import datetime
 from dataclasses import dataclass
 import logging
+from typing import Union
+
 from pyemvue.enums import Scale, Unit
 
 from vuegraf.config import getConfigValue, getInfluxTag
@@ -28,7 +30,7 @@ class Point:
   chanName: str  # for example, each circuit or the total/balance
   usageWatts: float
   timestamp: datetime.datetime  # zone aware, UTC
-  detailed: bool
+  detailed: Union[bool, str]  # 'Minutes', 'Days', etc or False
 
 
 def extractDataPoints(config, account, device, stopTimeUTC, collectDetails, usageDataPoints: list[Point],

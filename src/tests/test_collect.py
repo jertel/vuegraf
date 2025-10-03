@@ -10,6 +10,7 @@ from pyemvue.device import VueDeviceChannel, VueDevice
 from pyemvue.enums import Scale, Unit
 
 from vuegraf import collect
+from vuegraf.collect import Point
 
 
 # Basic config structure for tests
@@ -86,7 +87,6 @@ class TestCollect(TestCase):
         self.patcher_getInfluxTag = patch('vuegraf.collect.getInfluxTag', return_value=(None, 'Seconds', 'Minutes', 'Hours', 'Days'))
         self.patcher_lookupDeviceName = patch('vuegraf.collect.lookupDeviceName', return_value='TestDevice1')
         self.patcher_lookupChannelName = patch('vuegraf.collect.lookupChannelName', side_effect=self._mock_lookupChannelName)
-        self.patcher_createDataPoint = patch('vuegraf.collect.createDataPoint', side_effect=self._mock_createDataPoint)
         self.patcher_getLastDBTimeStamp = patch('vuegraf.collect.getLastDBTimeStamp')
         self.patcher_calculateHistoryTimeRange = patch('vuegraf.collect.calculateHistoryTimeRange')
         self.patcher_convertToLocalDayInUTC = patch('vuegraf.collect.convertToLocalDayInUTC',
@@ -96,7 +96,6 @@ class TestCollect(TestCase):
         self.mock_getInfluxTag = self.patcher_getInfluxTag.start()
         self.mock_lookupDeviceName = self.patcher_lookupDeviceName.start()
         self.mock_lookupChannelName = self.patcher_lookupChannelName.start()
-        self.mock_createDataPoint = self.patcher_createDataPoint.start()
         self.mock_getLastDBTimeStamp = self.patcher_getLastDBTimeStamp.start()
         self.mock_calculateHistoryTimeRange = self.patcher_calculateHistoryTimeRange.start()
         self.mock_convertToLocalDayInUTC = self.patcher_convertToLocalDayInUTC.start()
@@ -106,7 +105,6 @@ class TestCollect(TestCase):
         self.patcher_getInfluxTag.stop()
         self.patcher_lookupDeviceName.stop()
         self.patcher_lookupChannelName.stop()
-        self.patcher_createDataPoint.stop()
         self.patcher_getLastDBTimeStamp.stop()
         self.patcher_calculateHistoryTimeRange.stop()
         self.patcher_convertToLocalDayInUTC.stop()
@@ -141,10 +139,6 @@ class TestCollect(TestCase):
             return 'NestedChannel'
         return f'UnknownChannel_{channel.channel_num}'
 
-    def _mock_createDataPoint(self, config, account_name, device_name, channel_name, watts, timestamp, point_type):
-        # Just return a tuple representing the data point for easy assertion
-        return (account_name, device_name, channel_name, watts, timestamp, point_type)
-
     def _create_mock_device(self, gid, channels_data):
         device = VueDevice()
         device.device_gid = gid
@@ -175,14 +169,10 @@ class TestCollect(TestCase):
 
         expected_watts = 0.01 * 60 * 1000  # 600W
         expected_timestamp = self.stop_time_utc.replace(second=0, microsecond=0)
-        expected_point = ('TestAccount', 'TestDevice1', 'TestChannel1', expected_watts, expected_timestamp, 'Minutes')
+        expected_point = Point('TestAccount', 'TestDevice1', 'TestChannel1', expected_watts, expected_timestamp, 'Minutes')
 
         self.assertEqual(len(self.usage_data_points), 1)
         self.assertEqual(self.usage_data_points[0], expected_point)
-        self.mock_createDataPoint.assert_called_once_with(
-            self.mock_config, 'TestAccount', 'TestDevice1', 'TestChannel1',
-            expected_watts, expected_timestamp, 'Minutes'
-        )
         self.mock_getLastDBTimeStamp.assert_called_once()  # Called for minutes check
         self.mock_account['vue'].get_chart_usage.assert_not_called()  # History not fetched
 
@@ -206,15 +196,11 @@ class TestCollect(TestCase):
         # Check the point created is for the 'Balance' channel
         expected_watts_balance = 0.02 * 60 * 1000  # 1200W
         expected_timestamp_balance = self.stop_time_utc.replace(second=0, microsecond=0)
-        expected_point_balance = ('TestAccount', 'TestDevice1', 'BalanceChannel', expected_watts_balance,
+        expected_point_balance = Point('TestAccount', 'TestDevice1', 'BalanceChannel', expected_watts_balance,
                                   expected_timestamp_balance, 'Minutes')
+        # Assert a single Point was generated (for the 'Balance' channel)
         self.assertEqual(self.usage_data_points[0], expected_point_balance)
 
-        # Assert createDataPoint was called only once (for the 'Balance' channel)
-        self.mock_createDataPoint.assert_called_once_with(
-            self.mock_config, 'TestAccount', 'TestDevice1', 'BalanceChannel',
-            expected_watts_balance, expected_timestamp_balance, 'Minutes'
-        )
         # getLastDBTimeStamp should only be called for the channel with non-None usage
         self.assertEqual(self.mock_getLastDBTimeStamp.call_count, 1)
         self.mock_account['vue'].get_chart_usage.assert_not_called()
@@ -250,25 +236,23 @@ class TestCollect(TestCase):
         # Check first point
         expected_watts_0 = 0.005 * 60 * 1000
         expected_ts_0 = mock_usage_start_time + datetime.timedelta(minutes=0)
-        self.assertEqual(self.usage_data_points[0], (
+        self.assertEqual(self.usage_data_points[0], Point(
             'TestAccount', 'TestDevice1', 'TestChannel1', expected_watts_0, expected_ts_0, 'Minutes'
         ))
 
         # Check second point
         expected_watts_1 = 0.006 * 60 * 1000
         expected_ts_1 = mock_usage_start_time + datetime.timedelta(minutes=1)
-        self.assertEqual(self.usage_data_points[1], (
+        self.assertEqual(self.usage_data_points[1], Point(
             'TestAccount', 'TestDevice1', 'TestChannel1', expected_watts_1, expected_ts_1, 'Minutes'
         ))
 
         # Check third point (index 3 because index 2 was None)
         expected_watts_3 = 0.007 * 60 * 1000
         expected_ts_3 = mock_usage_start_time + datetime.timedelta(minutes=3)
-        self.assertEqual(self.usage_data_points[2], (
+        self.assertEqual(self.usage_data_points[2], Point(
             'TestAccount', 'TestDevice1', 'TestChannel1', expected_watts_3, expected_ts_3, 'Minutes'
         ))
-
-        self.assertEqual(self.mock_createDataPoint.call_count, 3)
 
     def test_extractDataPoints_minute_history_no_data_retry(self):
         # Test minute history collection when the first attempt returns no data
@@ -322,13 +306,13 @@ class TestCollect(TestCase):
         self.assertEqual(len(self.usage_data_points), 2)  # Points from the second call
         expected_watts_0 = 8 * 60 * 1000
         expected_ts_0 = mock_usage_start_time_next + datetime.timedelta(minutes=0)
-        self.assertEqual(self.usage_data_points[0], (
+        self.assertEqual(self.usage_data_points[0], Point(
             'TestAccount', 'TestDevice1', 'TestChannel1', expected_watts_0, expected_ts_0, 'Minutes'
         ))
 
         expected_watts_1 = 9 * 60 * 1000
         expected_ts_1 = mock_usage_start_time_next + datetime.timedelta(minutes=1)
-        self.assertEqual(self.usage_data_points[1], (
+        self.assertEqual(self.usage_data_points[1], Point(
             'TestAccount', 'TestDevice1', 'TestChannel1', expected_watts_1, expected_ts_1, 'Minutes'
         ))
 
@@ -410,13 +394,6 @@ class TestCollect(TestCase):
         )
         # get_chart_usage should NOT be called because historyStartTimeUTC was provided (elif is False)
         self.mock_account['vue'].get_chart_usage.assert_not_called()
-        # createDataPoint should NOT be called for minutes because minuteHistoryEnabled was True (if is False)
-        # and historyStartTimeUTC was not None (elif is False)
-        minute_point_calls = [
-            call for call in self.mock_createDataPoint.call_args_list
-            if call[0][6] == 'Minutes'  # Check the point_type argument (index 6)
-        ]
-        self.assertEqual(len(minute_point_calls), 0)
         # Overall, no points should be added in this specific scenario for this channel's minute data
         self.assertEqual(len(self.usage_data_points), 0)
 
@@ -432,13 +409,14 @@ class TestCollect(TestCase):
         expected_watts = 1.5 * 1000  # 1500W (average for the day)
         # convertToLocalDayInUTC mock returns start of the day UTC
         expected_timestamp = history_start_time.replace(hour=0, minute=0, second=0, microsecond=0)
-        expected_point = ('TestAccount', 'TestDevice1', 'TestChannel1', expected_watts, expected_timestamp, 'Days')
 
         self.assertEqual(len(self.usage_data_points), 1)
-        self.assertEqual(self.usage_data_points[0], expected_point)
-        self.mock_createDataPoint.assert_called_once_with(
-            self.mock_config, 'TestAccount', 'TestDevice1', 'TestChannel1',
-            expected_watts, expected_timestamp, 'Days'
+        self.assertEqual(
+            self.usage_data_points[0],
+            Point(
+              'TestAccount', 'TestDevice1', 'TestChannel1',
+              expected_watts, expected_timestamp, 'Days'
+            )
         )
         self.mock_getLastDBTimeStamp.assert_not_called()  # Not called when pointType is specified
         self.mock_account['vue'].get_chart_usage.assert_not_called()  # Not called when pointType is specified
@@ -454,14 +432,10 @@ class TestCollect(TestCase):
 
         expected_watts = 0.1 * 1000  # 100W (average for the hour)
         expected_timestamp = history_start_time  # Timestamp is the start of the hour
-        expected_point = ('TestAccount', 'TestDevice1', 'TestChannel1', expected_watts, expected_timestamp, 'Hours')
+        expected_point = Point('TestAccount', 'TestDevice1', 'TestChannel1', expected_watts, expected_timestamp, 'Hours')
 
         self.assertEqual(len(self.usage_data_points), 1)
         self.assertEqual(self.usage_data_points[0], expected_point)
-        self.mock_createDataPoint.assert_called_once_with(
-            self.mock_config, 'TestAccount', 'TestDevice1', 'TestChannel1',
-            expected_watts, expected_timestamp, 'Hours'
-        )
         self.mock_getLastDBTimeStamp.assert_not_called()
         self.mock_account['vue'].get_chart_usage.assert_not_called()
 
@@ -511,25 +485,25 @@ class TestCollect(TestCase):
         # Check first second point
         expected_watts_s0 = 1 * 60 * 60 * 1000  # 3.6W
         expected_ts_s0 = mock_usage_start_time + datetime.timedelta(seconds=0)
-        self.assertIn((
+        self.assertIn(Point(
             'TestAccount', 'TestDevice1', 'TestChannel1', expected_watts_s0, expected_ts_s0, 'Seconds'
         ), self.usage_data_points)
 
         # Check second second point
         expected_watts_s1 = 2 * 60 * 60 * 1000  # 7.2W
         expected_ts_s1 = mock_usage_start_time + datetime.timedelta(seconds=1)
-        self.assertIn((
+        self.assertIn(Point(
             'TestAccount', 'TestDevice1', 'TestChannel1', expected_watts_s1, expected_ts_s1, 'Seconds'
         ), self.usage_data_points)
 
         # Check third second point (index 3)
         expected_watts_s3 = 3 * 60 * 60 * 1000  # 10.8W
         expected_ts_s3 = mock_usage_start_time + datetime.timedelta(seconds=3)
-        self.assertIn((
+        self.assertIn(Point(
             'TestAccount', 'TestDevice1', 'TestChannel1', expected_watts_s3, expected_ts_s3, 'Seconds'
         ), self.usage_data_points)
 
-        self.assertEqual(self.mock_createDataPoint.call_count, 4)
+        self.assertEqual(len(self.usage_data_points), 4)
 
     def test_getConfigValue_detailedDataMinutesHistoryDays_present(self):
         """Verify _mock_getConfigValue handles existing detailedDataMinutesHistoryDays."""
@@ -574,9 +548,8 @@ class TestCollect(TestCase):
         self.assertEqual(len(self.usage_data_points), 1)
         expected_watts = 0.01 * 60 * 1000
         expected_timestamp = self.stop_time_utc.replace(second=0, microsecond=0)
-        expected_point = ('TestAccount', 'TestDevice1', 'TestChannel1', expected_watts, expected_timestamp, 'Minutes')
+        expected_point = Point('TestAccount', 'TestDevice1', 'TestChannel1', expected_watts, expected_timestamp, 'Minutes')
         self.assertEqual(self.usage_data_points[0], expected_point)
-        self.assertEqual(self.mock_createDataPoint.call_count, 1)  # Only called for the minute point
 
     def test_extractDataPoints_historical_hour_day_collection(self):
         # Test historical hour and day collection
@@ -624,21 +597,21 @@ class TestCollect(TestCase):
         # Check first hour point
         expected_watts_h0 = 0.1 * 1000
         expected_ts_h0 = mock_hour_start_time + datetime.timedelta(hours=0)
-        self.assertIn((
+        self.assertIn(Point(
             'TestAccount', 'TestDevice1', 'TestChannel1', expected_watts_h0, expected_ts_h0, 'Hours'
         ), self.usage_data_points)
 
         # Check second hour point
         expected_watts_h1 = 0.2 * 1000
         expected_ts_h1 = mock_hour_start_time + datetime.timedelta(hours=1)
-        self.assertIn((
+        self.assertIn(Point(
             'TestAccount', 'TestDevice1', 'TestChannel1', expected_watts_h1, expected_ts_h1, 'Hours'
         ), self.usage_data_points)
 
         # Check third hour point (index 3)
         expected_watts_h3 = 0.3 * 1000
         expected_ts_h3 = mock_hour_start_time + datetime.timedelta(hours=3)
-        self.assertIn((
+        self.assertIn(Point(
             'TestAccount', 'TestDevice1', 'TestChannel1', expected_watts_h3, expected_ts_h3, 'Hours'
         ), self.usage_data_points)
 
@@ -647,7 +620,7 @@ class TestCollect(TestCase):
         # convertToLocalDayInUTC mock returns start of the day UTC after adding 6 hours
         expected_ts_d0 = (mock_day_start_time + datetime.timedelta(hours=6, days=0))
         expected_ts_d0 = expected_ts_d0.replace(hour=0, minute=0, second=0, microsecond=0)
-        self.assertIn((
+        self.assertIn(Point(
             'TestAccount', 'TestDevice1', 'TestChannel1', expected_watts_d0, expected_ts_d0, 'Days'
         ), self.usage_data_points)
 
@@ -656,11 +629,11 @@ class TestCollect(TestCase):
         # Use days=2 because index 1 was None
         expected_ts_d1 = (mock_day_start_time + datetime.timedelta(hours=6, days=2))
         expected_ts_d1 = expected_ts_d1.replace(hour=0, minute=0, second=0, microsecond=0)
-        self.assertIn((
+        self.assertIn(Point(
             'TestAccount', 'TestDevice1', 'TestChannel1', expected_watts_d1, expected_ts_d1, 'Days'
         ), self.usage_data_points)
 
-        self.assertEqual(self.mock_createDataPoint.call_count, 5)
+        self.assertEqual(len(self.usage_data_points), 5)
         self.mock_getLastDBTimeStamp.assert_not_called()  # Not called during history collection
 
     def test_extractDataPoints_nested_device(self):
@@ -685,7 +658,7 @@ class TestCollect(TestCase):
         # Check main channel point
         expected_watts_main = 0.01 * 60 * 1000
         expected_timestamp_main = self.stop_time_utc.replace(second=0, microsecond=0)
-        self.assertIn((
+        self.assertIn(Point(
             'TestAccount', 'TestDevice1', 'TestChannel1', expected_watts_main, expected_timestamp_main, 'Minutes'
         ), self.usage_data_points)
 
@@ -693,11 +666,11 @@ class TestCollect(TestCase):
         expected_watts_nested = 0.005 * 60 * 1000
         expected_timestamp_nested = self.stop_time_utc.replace(second=0, microsecond=0)
         # Note: lookupDeviceName is called recursively, so it should pick up 'NestedDevice'
-        self.assertIn((
+        self.assertIn(Point(
             'TestAccount', 'NestedDevice', 'NestedChannel', expected_watts_nested, expected_timestamp_nested, 'Minutes'
         ), self.usage_data_points)
 
-        self.assertEqual(self.mock_createDataPoint.call_count, 2)
+        self.assertEqual(len(self.usage_data_points), 2)
         # getLastDBTimeStamp should be called for both main and nested (if history enabled, but here it's disabled)
         self.assertEqual(self.mock_getLastDBTimeStamp.call_count, 2)
 
@@ -742,20 +715,20 @@ class TestCollect(TestCase):
         # get_chart_usage should only be called for the non-excluded channel ('1,2,3') for minutes and seconds
         self.assertEqual(self.mock_account['vue'].get_chart_usage.call_count, 2)  # Once for minutes history, once for seconds
 
-        # createDataPoint should be called for the non-excluded channel (minutes + seconds)
+        # points should be created for the non-excluded channel (minutes + seconds)
         # AND for the excluded channels (basic minute data only)
         # 2 history/detail points for 1,2,3 + 2 basic points for Balance/Total
-        self.assertEqual(self.mock_createDataPoint.call_count, 2 + 2)
+        self.assertEqual(len(self.usage_data_points), 2 + 2)
 
         # Check points for excluded channels (basic minute data)
         expected_watts_balance = 2 * 60 * 1000
         expected_ts = self.stop_time_utc.replace(second=0, microsecond=0)
-        self.assertIn((
+        self.assertIn(Point(
             'TestAccount', 'TestDevice1', 'BalanceChannel', expected_watts_balance, expected_ts, 'Minutes'
         ), self.usage_data_points)
 
         expected_watts_total = 3 * 60 * 1000
-        self.assertIn((
+        self.assertIn(Point(
             'TestAccount', 'TestDevice1', 'TotalUsageChannel', expected_watts_total, expected_ts, 'Minutes'
         ), self.usage_data_points)
 

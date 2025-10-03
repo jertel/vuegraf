@@ -8,6 +8,7 @@ from unittest.mock import MagicMock, patch
 
 # Local imports
 from vuegraf import influx
+from vuegraf.collect import Point
 from vuegraf.time import getTimeNow
 
 # Sample config for testing
@@ -59,7 +60,7 @@ def test_create_data_point_v1():
     config = copy.deepcopy(SAMPLE_CONFIG_V1)
     timestamp = getTimeNow(datetime.UTC)
     point = influx.createDataPoint(
-        config, 'account', 'device', 'channel', 100.5, timestamp, '1m'
+        config, Point('account', 'device', 'channel', 100.5, timestamp, '1m')
     )
     assert point['measurement'] == 'energy_usage'
     assert point['tags']['account_name'] == 'account'
@@ -76,7 +77,7 @@ def test_create_data_point_v1_with_station():
     config['addStationField'] = True
     timestamp = getTimeNow(datetime.UTC)
     point = influx.createDataPoint(
-        config, 'account', 'device', 'channel', 100.5, timestamp, '1m'
+        config, Point('account', 'device', 'channel', 100.5, timestamp, '1m')
     )
     assert point['tags']['station_name'] == 'device'
 
@@ -93,7 +94,7 @@ def test_create_data_point_v2(mock_point_class):
     mock_point_instance.time.return_value = mock_point_instance
 
     point = influx.createDataPoint(
-        config, 'account', 'device', 'channel', 100.5, timestamp, '1s'
+        config, Point('account', 'device', 'channel', 100.5, timestamp, '1s')
     )
 
     mock_point_class.assert_called_once_with('energy_usage')
@@ -118,7 +119,7 @@ def test_create_data_point_v2_with_station(mock_point_class):
     mock_point_instance.tag.return_value = mock_point_instance  # Chain calls
 
     influx.createDataPoint(
-        config, 'account', 'device', 'channel', 100.5, timestamp, '1s'
+        config, Point('account', 'device', 'channel', 100.5, timestamp, '1s')
     )
 
     mock_point_instance.tag.assert_any_call('station_name', 'device')
@@ -974,11 +975,23 @@ def test_write_influx_points_v1(mock_influx_client_class, mock_dump_points):
     config = copy.deepcopy(SAMPLE_CONFIG_V1)
     mock_influx_instance = MagicMock()
     config['influx'] = mock_influx_instance
-    points = [{'measurement': 'test', 'fields': {'value': 1}}]
+    points = [Point('account', 'device', 'channel', 1, 'time', '1m')]
+    influx_points = [
+      {
+        'measurement': 'energy_usage',
+        'tags': {
+          'account_name': 'account',
+          'device_name': 'channel',
+          'detail': '1m'
+        },
+        'fields': {'usage': 1},
+        'time': 'time'
+      }
+    ]
 
     influx.writeInfluxPoints(config, points)
 
-    mock_influx_instance.write_points.assert_called_once_with(points, batch_size=5000)
+    mock_influx_instance.write_points.assert_called_once_with(influx_points, batch_size=5000)
     mock_dump_points.assert_not_called()
 
 
@@ -992,15 +1005,17 @@ def test_write_influx_points_v2(mock_influx_client_class, mock_dump_points):
     mock_write_api = MagicMock()
     mock_influx_instance.write_api.return_value = mock_write_api
     config['influx'] = mock_influx_instance
-    # Create mock Point objects for v2
-    mock_point1 = MagicMock(spec=influxdb_client.Point)
-    mock_point2 = MagicMock(spec=influxdb_client.Point)
-    points = [mock_point1, mock_point2]
+    # Create input capture.Point and output influx Point v2 objects.
+    points = [
+      Point('account', 'device', 'channel1', 1, 'time', '1m'),
+      Point('account', 'device', 'channel2', 2, 'time', '1m'),
+    ]
+    influx_points = [influx.createDataPoint(config, pt) for pt in points]
 
     influx.writeInfluxPoints(config, points)
 
     mock_influx_instance.write_api.assert_called_once_with(write_options='SYNCHRONOUS')
-    mock_write_api.write.assert_called_once_with(bucket='vuegraf', record=points)
+    mock_write_api.write.assert_called_once_with(bucket='vuegraf', record=influx_points)
     mock_dump_points.assert_not_called()
 
 
@@ -1014,8 +1029,8 @@ def test_write_influx_points_dryrun(mock_influx_v2, mock_influx_v1, mock_dump_po
     config_v1['args'] = MagicMock(debug=False, dryrun=True, resetdatabase=False)
     mock_influx_instance_v1 = MagicMock()
     config_v1['influx'] = mock_influx_instance_v1
-    points_v1 = [{'measurement': 'test', 'fields': {'value': 1}}]
-    influx.writeInfluxPoints(config_v1, points_v1)
+    points = [Point('account', 'device', 'channel', 1, 'time', '1m')]
+    influx.writeInfluxPoints(config_v1, points)
     mock_influx_instance_v1.write_points.assert_not_called()
 
     # Test V2 dryrun
@@ -1025,8 +1040,7 @@ def test_write_influx_points_dryrun(mock_influx_v2, mock_influx_v1, mock_dump_po
     mock_write_api_v2 = MagicMock()
     mock_influx_instance_v2.write_api.return_value = mock_write_api_v2
     config_v2['influx'] = mock_influx_instance_v2
-    points_v2 = [MagicMock(spec=influxdb_client.Point)]
-    influx.writeInfluxPoints(config_v2, points_v2)
+    influx.writeInfluxPoints(config_v2, points)
     mock_influx_instance_v2.write_api.assert_not_called()
     mock_write_api_v2.write.assert_not_called()
 
@@ -1041,12 +1055,24 @@ def test_write_influx_points_debug(mock_influx_client_class, mock_dump_points):
     config['args'] = MagicMock(debug=True, dryrun=False, resetdatabase=False)  # Enable debug
     mock_influx_instance = MagicMock()
     config['influx'] = mock_influx_instance
-    points = [{'measurement': 'test', 'fields': {'value': 1}}]
+    points = [Point('account', 'device', 'channel', 1, 'time', '1m')]
+    influx_points = [
+      {
+        'measurement': 'energy_usage',
+        'tags': {
+          'account_name': 'account',
+          'device_name': 'channel',
+          'detail': '1m'
+        },
+        'fields': {'usage': 1},
+        'time': 'time'
+      }
+    ]
 
     influx.writeInfluxPoints(config, points)
 
-    mock_influx_instance.write_points.assert_called_once_with(points, batch_size=5000)
-    mock_dump_points.assert_called_once_with(config, "Sending to database", points)
+    mock_influx_instance.write_points.assert_called_once_with(influx_points, batch_size=5000)
+    mock_dump_points.assert_called_once_with(config, "Sending to database", influx_points)
 
 
 # --- Test dumpPoints ---
