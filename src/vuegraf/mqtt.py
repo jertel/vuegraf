@@ -23,10 +23,10 @@ def initMqttConnectionIfConfigured(config) -> None:
     raise ValueError("Missing required \"host\" key within MQTT section.")
   port = mqtt_config.get("port", 1883)
   username = mqtt_config.get("username")
-  password = mqtt_config.get("pw")
+  password = mqtt_config.get("password")
   if bool(username) != bool(password):
     raise ValueError(
-        "MQTT config section contains one of username/pw but not the other."
+        "MQTT config section contains one of username/password but not the other."
     )
   topic = mqtt_config.get("topic")
   if not topic:

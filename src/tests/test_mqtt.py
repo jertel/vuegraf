@@ -62,7 +62,7 @@ def test_init_config_complex_valid(mock_client_cls):
       "host": "unittest.mqtt.host",
       "port": 123,
       "username": "unittest_user",
-      "pw": "unittest_pw",
+      "password": "unittest_pw",
     }
   }
   mqtt.initMqttConnectionIfConfigured(config)

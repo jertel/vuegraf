@@ -191,6 +191,44 @@ If you intend to run multiple Vue systems under the same account, where the chan
 
 Note that enabling this at a later time will cause issues due to queries matching multiple records. Therefore if you are installing Vuegraf for the first time and think this could be useful then enable it at the start.
 
+### MQTT
+
+In addition to publishing to Influx, you can send pubsub messages to a MQTT server such as [Mosquitto](https://mosquitto.org/). MQTT only sends the latest timestamped value per channel in each batch (so it will not flood the topic with historical messages when `vuegraf` starts). The minimal config  would just add the host:
+
+```json
+{
+    "influxDb": {
+        ...
+    },
+    "accounts": [
+        {
+            ...
+        }
+    ],
+    "mqtt": {
+      "host": "my.mqtt.host"
+    }
+}
+```
+
+There are additional keys for authentication and topic customization:
+
+```json
+    "mqtt": {
+      "host": "my.mqtt.host",
+      "port": 8999,
+      "username": "my_mqtt_user",
+      "password": "my_mqtt_pw",
+      "topic": "custom/vue/topic/for/energy_usage"
+    }
+```
+
+By default, messages with be to the `vuegraf/energy_usage` topic. An example showing the structure:
+
+```json
+{"account": "Vue Account", "device_name": "Left Panel-7", "usage_watts": 275.02, "epoch_s": 1759441380, "detailed": "False"}
+```
+
 # Running
 Vuegraf can be run either as a container (recommended), or as a host process.
 
