@@ -5,7 +5,7 @@ from setuptools import setup
 base_dir = os.path.dirname(__file__)
 setup(
     name='vuegraf',
-    version='1.10.0',
+    version='1.10.1',
     author='Jason Ertel',
     long_description=open('README.md').read(),
     long_description_content_type="text/markdown",

@@ -9,6 +9,17 @@
 ## Other changes
 - TBD
 
+# 1.10.1
+
+## Breaking changes
+- None
+
+## New features
+- None
+
+## Other changes
+- Emporia API change caused Vuegraf to fail to start. Removed unnecessary API call. - @jertel
+
 # 1.10.0
 
 ## Breaking changes

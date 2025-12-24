@@ -11,8 +11,8 @@ and graceful shutdown.
 __author__ = 'https://github.com/jertel'
 __license__ = 'MIT'
 __contributors__ = 'https://github.com/jertel/vuegraf/graphs/contributors'
-__version__ = '1.10.0'
-__versiondate__ = '2025/10/02'
+__version__ = '1.10.1'
+__versiondate__ = '2025/12/24'
 __maintainer__ = 'https://github.com/jertel'
 __status__ = 'Production'
 
