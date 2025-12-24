@@ -220,6 +220,83 @@ class TestDeviceFunctions(unittest.TestCase):
         # It should find the name from the config structure
         self.assertEqual(name, 'Main Panel-1')
 
+    def test_populateDevices_empty_device_name(self):
+        """Test that devices with empty names are not added to deviceIdMap."""
+        # Create a device with empty name
+        device_empty_name = VueDevice()
+        device_empty_name.device_gid = 999
+        device_empty_name.device_name = ''  # Empty name
+
+        # Add a channel to this device
+        channel_empty = VueDeviceChannel()
+        channel_empty.device_gid = 999
+        channel_empty.name = 'Empty Device Channel'
+        channel_empty.channel_num = '1'
+        device_empty_name.channels = [channel_empty]
+
+        # Add this device to the mock return value
+        self.mock_vue.get_devices.return_value.append(device_empty_name)
+
+        # Test populateDevices
+        device_module.populateDevices(self.account)
+
+        # Device with empty name should NOT be in deviceIdMap
+        self.assertNotIn(999, self.account['deviceIdMap'])
+        # But the channel should still be in channelIdMap
+        self.assertIn('999-1', self.account['channelIdMap'])
+
+    def test_populateDevices_duplicate_gid(self):
+        """Test that devices with duplicate GIDs are not added to deviceIdMap."""
+        # Create a device with duplicate GID
+        device_duplicate = VueDevice()
+        device_duplicate.device_gid = 123  # Same GID as device1
+        device_duplicate.device_name = 'Duplicate Panel'
+
+        # Add a channel to this device
+        channel_dup = VueDeviceChannel()
+        channel_dup.device_gid = 123
+        channel_dup.name = 'Duplicate Channel'
+        channel_dup.channel_num = '3'
+        device_duplicate.channels = [channel_dup]
+
+        # Add this device to the mock return value
+        self.mock_vue.get_devices.return_value.append(device_duplicate)
+
+        # Test populateDevices
+        device_module.populateDevices(self.account)
+
+        # Only the first device with GID 123 should be in deviceIdMap
+        self.assertEqual(len(self.account['deviceIdMap']), 2)  # Only device1 and device2
+        self.assertEqual(self.account['deviceIdMap'][123].device_name, 'Main Panel')  # Original device
+        # But the channel from duplicate device should still be added
+        self.assertIn('123-3', self.account['channelIdMap'])
+
+    def test_populateDevices_both_conditions_met(self):
+        """Test that devices meeting both conditions are added to deviceIdMap."""
+        # Create a new device that meets both conditions
+        device_new = VueDevice()
+        device_new.device_gid = 789
+        device_new.device_name = 'New Panel'  # Non-empty name
+
+        # Add a channel to this device
+        channel_new = VueDeviceChannel()
+        channel_new.device_gid = 789
+        channel_new.name = 'New Channel'
+        channel_new.channel_num = '1'
+        device_new.channels = [channel_new]
+
+        # Add this device to the mock return value
+        self.mock_vue.get_devices.return_value.append(device_new)
+
+        # Test populateDevices
+        device_module.populateDevices(self.account)
+
+        # Device should be in deviceIdMap
+        self.assertIn(789, self.account['deviceIdMap'])
+        self.assertEqual(self.account['deviceIdMap'][789].device_name, 'New Panel')
+        # Channel should also be in channelIdMap
+        self.assertIn('789-1', self.account['channelIdMap'])
+
     @patch('vuegraf.device.PyEmVue')  # Patch the class in the device module
     def test_initDeviceAccount(self, mock_pyemvue_class):
         """Test initializing the device account."""

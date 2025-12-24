@@ -17,8 +17,13 @@ def populateDevices(account):
     account['channelIdMap'] = channelIdMap
     devices = account['vue'].get_devices()
     for device in devices:
-        device = account['vue'].populate_device_properties(device)
-        deviceIdMap[device.device_gid] = device
+        # Only map the primary device. We get two device entries per device. The first contains all the
+        # device details and has a single 1,2,3 channel for the mains. The second does not have the device
+        # details but has the other channels for the individual circuits. So we use the (base) device with
+        # an non-blank device name attribute as the map entry.
+        if device.device_gid not in deviceIdMap and len(device.device_name) > 0:
+            deviceIdMap[device.device_gid] = device
+
         for chan in device.channels:
             key = '{}-{}'.format(device.device_gid, chan.channel_num)
             if chan.name is None and chan.channel_num == '1,2,3':
