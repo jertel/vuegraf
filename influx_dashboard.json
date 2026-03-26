@@ -78,7 +78,9 @@
 			"type": "constant",
 			"values": [
 				"True",
-				"False"
+				"False",
+				"Hour",
+				"Day"
 			]
 		}
 	},
