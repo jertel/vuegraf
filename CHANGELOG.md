@@ -7,7 +7,7 @@
 - TBD
 
 ## Other changes
-- TBD
+- Added missing DetailedDataEnabled variable values: Day, Hour - @jertel
 
 # 1.10.1
 
