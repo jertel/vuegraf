@@ -3,6 +3,7 @@
 
 import datetime
 import logging
+import time
 from unittest import TestCase
 from unittest.mock import MagicMock, patch
 
@@ -360,6 +361,78 @@ class TestCollect(TestCase):
             unit=Unit.KWH.value
         )
         self.assertEqual(len(self.usage_data_points), 0)  # No data points collected
+
+    def test_extractDataPoints_minute_history_negative_cache_skips_next_cycle(self):
+        # Regression test for the minute-backfill wedge: when get_chart_usage(MINUTE)
+        # persistently returns all-None for a channel, the first cycle exhausts the
+        # backfill window and writes nothing. The negative cache should then
+        # short-circuit subsequent cycles -- no further get_chart_usage calls for
+        # that channel, and the simple current-sample branch writes one minute
+        # point per cycle.
+        self.mock_config['data']['detailedDataMinutesHistoryEnabled'] = True
+        minute_history_start = self.stop_time_utc.replace(second=0, microsecond=0) - datetime.timedelta(hours=12)
+        stop_time_min = self.stop_time_utc.replace(second=0, microsecond=0) - datetime.timedelta(hours=6)
+        self.mock_getLastDBTimeStamp.return_value = (minute_history_start, stop_time_min, True)
+
+        mock_device = self._create_mock_device(12345, [('1,2,3', 0.01, None)])
+
+        # Cycle 1: all-None across the backfill window
+        mock_minute_usage_none = [None] * 10
+        self.mock_account['vue'].get_chart_usage.side_effect = [
+            (mock_minute_usage_none, minute_history_start),
+            (mock_minute_usage_none, stop_time_min),
+            (mock_minute_usage_none, stop_time_min + (stop_time_min - minute_history_start)),
+        ]
+
+        collect.extractDataPoints(self.mock_config, self.mock_account, mock_device, self.stop_time_utc,
+                                  False, self.usage_data_points, self.detailed_start_time_utc)
+
+        # Cycle 1 ran the backfill loop and wrote nothing
+        cycle_1_call_count = self.mock_account['vue'].get_chart_usage.call_count
+        self.assertGreaterEqual(cycle_1_call_count, 2)
+        self.assertEqual(len(self.usage_data_points), 0)
+        # The negative cache should now contain this (device, channel)
+        cache = self.mock_config.get('_minuteBackfillSkipCache', {})
+        self.assertIn(('TestDevice1', 'TestChannel1'), cache)
+
+        # Cycle 2: same mock state, but the cache should short-circuit the backfill.
+        # If the cache fails to engage, get_chart_usage would be called again
+        # (and raise StopIteration since side_effect is exhausted).
+        self.mock_account['vue'].get_chart_usage.side_effect = None  # exhausted; any further call would error
+        self.mock_account['vue'].get_chart_usage.reset_mock()
+
+        collect.extractDataPoints(self.mock_config, self.mock_account, mock_device, self.stop_time_utc,
+                                  False, self.usage_data_points, self.detailed_start_time_utc)
+
+        # Cycle 2 should have made ZERO get_chart_usage calls (cache hit), and
+        # written exactly one minute point via the simple current-sample branch.
+        self.mock_account['vue'].get_chart_usage.assert_not_called()
+        self.assertEqual(len(self.usage_data_points), 1)
+        self.assertEqual(self.usage_data_points[0].chanName, 'TestChannel1')
+
+    def test_extractDataPoints_minute_history_negative_cache_expires(self):
+        # After the cache TTL elapses, the backfill is attempted again -- the
+        # cache is not a permanent skip, just a transient cool-off.
+        self.mock_config['data']['detailedDataMinutesHistoryEnabled'] = True
+        # Pre-seed the cache with an entry that expired one second ago.
+        self.mock_config['_minuteBackfillSkipCache'] = {('TestDevice1', 'TestChannel1'): time.time() - 1}
+
+        minute_history_start = self.stop_time_utc.replace(second=0, microsecond=0) - datetime.timedelta(hours=12)
+        stop_time_min = self.stop_time_utc.replace(second=0, microsecond=0) - datetime.timedelta(hours=6)
+        self.mock_getLastDBTimeStamp.return_value = (minute_history_start, stop_time_min, True)
+
+        mock_device = self._create_mock_device(12345, [('1,2,3', 0.01, None)])
+        # Simulate the API now returning real data -- recovery scenario.
+        mock_minute_usage = [0.005, 0.006, 0.007]
+        self.mock_account['vue'].get_chart_usage.return_value = (mock_minute_usage, minute_history_start)
+
+        collect.extractDataPoints(self.mock_config, self.mock_account, mock_device, self.stop_time_utc,
+                                  False, self.usage_data_points, self.detailed_start_time_utc)
+
+        # Expired cache entry should NOT block the backfill -- get_chart_usage runs,
+        # real points are written.
+        self.mock_account['vue'].get_chart_usage.assert_called_once()
+        self.assertEqual(len(self.usage_data_points), 3)
 
     def test_extractDataPoints_minute_history_skipped_due_to_history_param(self):
         # Test scenario where minute history is enabled, channel not excluded,
