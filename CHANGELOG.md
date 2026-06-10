@@ -8,6 +8,7 @@
 
 ## Other changes
 - Added missing DetailedDataEnabled variable values: Day, Hour - @jertel
+- Fix minute-history backfill loop wedging permanently when a channel's parent has no historical minute data (negative cache with 1h TTL; invisible to channels that have data). - [#209](https://github.com/jertel/vuegraf/issues/209) - @MMeffert
 
 # 1.10.1
 

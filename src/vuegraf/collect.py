@@ -6,6 +6,7 @@
 import datetime
 from dataclasses import dataclass
 import logging
+import time
 from typing import Union
 
 from pyemvue.enums import Scale, Unit
@@ -17,6 +18,36 @@ from vuegraf.time import calculateHistoryTimeRange, convertToLocalDayInUTC
 
 
 logger = logging.getLogger('vuegraf.data')
+
+
+# How long to remember that a (device, channel) returned no minute-history data,
+# before attempting the 7-day rewind backfill again. See getMinuteBackfillSkipCache().
+MINUTE_BACKFILL_SKIP_TTL_SEC = 3600  # 1 hour
+
+
+def getMinuteBackfillSkipCache(config):
+    """Negative cache for the minute-history backfill loop in extractDataPoints.
+
+    Some Emporia hardware revisions persistently return all-None from
+    get_chart_usage(scale=MINUTE) for a device's synthesized parent channel
+    (e.g. '1,2,3'), even though hourly/daily aggregates and the live-sample
+    endpoint return real values for the same channel. Without a cache, when
+    InfluxDB has no minute-tagged record for such a channel, getLastDBTimeStamp
+    re-anchors at now - 7 days every cycle, and the backfill while-loop here
+    walks the full 7-day window in 12-hour chunks — fetching nothing and
+    writing nothing — on every single 60s cycle, indefinitely.
+
+    This cache records '(deviceName, chanName) -> expiry_epoch' for channels
+    where a backfill window completed without writing any points. Subsequent
+    cycles short-circuit to the simple current-sample minute point (same path
+    excluded channels already take) until the cache entry expires.
+
+    The cache is bound to the config dict (one cache per Vuegraf process). It
+    stays empty for channels that have data — zero overhead for working
+    installations. Restarting Vuegraf clears it, giving the upstream API a
+    fresh attempt.
+    """
+    return config.setdefault('_minuteBackfillSkipCache', {})
 
 
 @dataclass
@@ -59,16 +90,28 @@ def extractDataPoints(config, account, device, stopTimeUTC, collectDetails, usag
         kwhUsage = chan.usage
         if kwhUsage is not None:
             if pointType is None:
-                # Collect previous minute averages
-                minuteHistoryStartTime, stopTimeMin, minuteHistoryEnabled = getLastDBTimeStamp(config, deviceName,
-                                                                                               chanName, tagValue_minute,
-                                                                                               stopTimeUTC, stopTimeUTC, False)
+                # Negative-cache check: if a prior backfill window for this
+                # (device, channel) completed without writing any minute points,
+                # short-circuit to the simple current-sample branch and skip the
+                # 7-day-rewind getLastDBTimeStamp + while-loop entirely. See
+                # getMinuteBackfillSkipCache for the rationale.
+                skipCache = getMinuteBackfillSkipCache(config)
+                cacheKey = (deviceName, chanName)
+                skipExpiry = skipCache.get(cacheKey)
+                if skipExpiry is not None and skipExpiry > time.time():
+                    minuteHistoryStartTime, stopTimeMin, minuteHistoryEnabled = (stopTimeUTC, stopTimeUTC, False)
+                else:
+                    # Collect previous minute averages
+                    minuteHistoryStartTime, stopTimeMin, minuteHistoryEnabled = getLastDBTimeStamp(config, deviceName,
+                                                                                                   chanName, tagValue_minute,
+                                                                                                   stopTimeUTC, stopTimeUTC, False)
                 if not minuteHistoryEnabled or chanNum in excludedDetailChannelNumbers:
                     watts = float(minutesInAnHour * wattsInAKw) * kwhUsage
                     timestamp = stopTimeUTC.replace(second=0)
                     usageDataPoints.append(Point(accountName, deviceName, chanName, watts, timestamp, tagValue_minute))
                 elif chanNum not in excludedDetailChannelNumbers and historyStartTimeUTC is None:
                     # Still missing recent minute history, attempt to collect in batches of 12 hours
+                    pointsBeforeBackfill = len(usageDataPoints)
                     noDataFlag = True
                     while noDataFlag:
                         # Collect minutes history (if neccessary, never during history collection)
@@ -106,6 +149,17 @@ def extractDataPoints(config, account, device, stopTimeUTC, collectDetails, usag
                             else:  # Time to break out of the loop; looks like the device in question is offline
                                 noDataFlag = False
                         minuteHistoryEnabled = False
+                    if len(usageDataPoints) == pointsBeforeBackfill:
+                        # The backfill window completed without writing any minute
+                        # points -- the upstream API returned all-None across the
+                        # entire 7-day rewind for this (device, channel). Cache the
+                        # negative result so subsequent cycles skip the rewind.
+                        skipCache[cacheKey] = time.time() + MINUTE_BACKFILL_SKIP_TTL_SEC
+                        logger.info(
+                            'No historical minute data for device="%s"; suppressing '
+                            'minute backfill for %ds (cache).',
+                            chanName, MINUTE_BACKFILL_SKIP_TTL_SEC,
+                        )
             elif pointType == tagValue_day:
                 # Collect previous day averages
                 watts = kwhUsage * wattsInAKw
