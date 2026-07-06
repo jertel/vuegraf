@@ -8,6 +8,9 @@ on:
   release:
     types: [created]
 
+env:
+  IMAGE_NAME: vuegraf
+
 jobs:
   release:
     runs-on: ubuntu-latest
@@ -47,4 +50,33 @@ jobs:
           --platform=linux/amd64,linux/arm64 \
           --output "type=image,push=true" \
           --file ./Dockerfile . \
-          --tag $(echo "${DOCKER_USERNAME}" | tr '[:upper:]' '[:lower:]')/vuegraf:${TAG}
+          --tag $(echo "${DOCKER_USERNAME}" | tr '[:upper:]' '[:lower:]')/${IMAGE_NAME}:${TAG}
+
+    - name: Log in to GitHub Container Registry
+      uses: docker/login-action@v4
+      with:
+        registry: ghcr.io
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Build and push image to GitHub
+      run: |
+        docker build . --file Dockerfile --tag $IMAGE_NAME
+
+        IMAGE_ID=ghcr.io/${{ github.repository }}/$IMAGE_NAME
+
+        # Change all uppercase to lowercase
+        IMAGE_ID=$(echo $IMAGE_ID | tr '[A-Z]' '[a-z]')
+
+        # Strip git ref prefix from version
+        VERSION=$(echo "${{ github.ref }}" | sed -e 's,.*/\(.*\),\1,')
+
+        # Use Docker `latest` tag convention
+        [ "$VERSION" == "master" ] && VERSION=latest
+
+        echo IMAGE_ID=$IMAGE_ID
+        echo VERSION=$VERSION
+
+        # Push to GitHub Package
+        docker tag $IMAGE_NAME $IMAGE_ID:$VERSION
+        docker push $IMAGE_ID:$VERSION
