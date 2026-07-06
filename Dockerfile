@@ -1,4 +1,4 @@
-FROM python:3.13-slim as builder
+FROM python:3.13-slim AS builder
 
 LABEL description="Vuegraf Official Image"
 LABEL maintainer="Jason Ertel"

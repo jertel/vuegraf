@@ -4,7 +4,7 @@
 - TBD
 
 ## New features
-- TBD
+- Added image to GHCR - @jertel
 
 ## Other changes
 - Added missing DetailedDataEnabled variable values: Day, Hour - @jertel
