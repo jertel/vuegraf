@@ -128,12 +128,84 @@ maxHistoryDays: 720
 ```
 
 
-IMPORTANT - If you restart Vuegraf with `--historydays` on the command line (or forget to remove it from the dockerfile) it will import history data _again_. This will likely cause confusion with your data since you will now have duplicate/overlapping data. For best results, only enable `--historydays` on a single run.
+IMPORTANT - If you restart Vuegraf with `--historydays` on the command line (or forget to remove it from the dockerfile) it will import history data _again_. Re-imported points overwrite the existing ones in the database (they share the same timestamp and tags), so this does not create duplicates, but it can be slow and places unnecessary load on the Emporia servers. For best results, only enable `--historydays` on a single run.
+
+> **VictoriaMetrics users: turn on deduplication.** That overwrite is an InfluxDB property. VictoriaMetrics stores a repeated write as an additional sample at the same timestamp, so re-importing history leaves two samples per reading and a query picks between them arbitrarily. The same applies to any reading collected twice — the current hour's average is provisional and is collected again once the hour closes. Run VictoriaMetrics with [`-dedup.minScrapeInterval=1ms`](https://docs.victoriametrics.com/#deduplication), which keeps the last sample written at a given timestamp and restores the overwrite semantics the rest of this document assumes.
 
 For Example:
 ```
 python3 path/to/vuegraf.py vuegraf.json --historydays 365
 ```
+
+### CSV Cache
+
+Vuegraf can optionally maintain a CSV copy of your data on disk, alongside your database. This is off by default; enable it with the top-level `csvCacheEnabled` configuration value:
+
+```
+csvCacheEnabled: true
+csvCacheDir: backfill
+```
+
+- `csvCacheEnabled` (default value is `false`): write and read the CSV cache.
+- `csvCacheDir` (default value is `backfill`): directory the CSV files are written to. A relative path is resolved against the working directory; an absolute path is used as-is. The directory is created if it does not exist.
+
+Only **settled** readings are mirrored. An open period's average is provisional: Emporia keeps refining it until the period closes, and whoever collects it afterwards writes the final figure under the same key. A time series database absorbs that as an overwrite; an append-only CSV would keep both rows. So the current hour and the current day are held back until they close, and the claimed cache coverage stops at the same boundary, which is what lets the settled value be collected on a later run.
+
+Each account has exactly one data file, named after the account with spaces replaced by underscores — the account named `Primary Residence` writes `Primary_Residence.csv`. It is appended to by both collection paths:
+
+- historical backfill, one append per fetched batch, and
+- normal operation, one append per hourly and daily average as it is collected, so the CSV stays as current as the database.
+
+Per-minute points are not mirrored: they are orders of magnitude more voluminous and are already durable in the database.
+
+Keeping it to a single file means the CSV is a self-contained, lower-resolution mirror of the database, ready to load directly without stitching files together:
+
+```python
+df = pd.read_csv('backfill/Primary_Residence.csv', parse_dates=['timestamp_utc'])
+```
+
+Since both paths share the file, a backfill covering a period the running daemon already mirrored would otherwise write those readings twice. Vuegraf avoids this at the source: before fetching, it reads back the keys already present at or after the current coverage end and skips re-appending matching readings. Readings the daemon *missed* — an hour it was down for, say — are still written, so the file does not develop holes.
+
+#### How large the file gets
+
+A row is about 74 bytes, and each series contributes one row per hour plus one per day — 9,125 rows per year, roughly 660 KiB per series per year:
+
+| Install | Series | Rows/year | 1 year | 5 years | 10 years |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| One Vue, 8 circuits | 11 | 100 K | 7 MiB | 35 MiB | 71 MiB |
+| One Vue, 16 circuits | 19 | 173 K | 12 MiB | 61 MiB | 122 MiB |
+| Two Vues, 16 circuits each, + 4 smart plugs | 42 | 383 K | 27 MiB | 135 MiB | 270 MiB |
+| Three Vues + 10 plugs, with Net Balance series | 80 | 730 K | 51 MiB | 257 MiB | 513 MiB |
+
+Restoring a range from the CSV, and reading back the already-mirrored keys, each scan the file end to end — about 1.5 seconds per 250 MiB, and only during a `--historydays` run, never during ordinary collection, which just appends.
+
+#### Resumable backfills
+
+When the cache is enabled, the history files act as a local cache in front of the Emporia history API. A small JSON manifest per account records which time range has already been collected:
+
+- On a subsequent `--historydays` run, any portion of the requested range already recorded in the cache is restored directly from the CSV files into every configured database, without calling the Emporia API. Only data newer (or otherwise outside) the cached range is fetched from Emporia to "true-up" the database.
+- Windows that returned no data (for example, dates before your monitors were installed) are recorded as covered, so they are not re-probed on later runs.
+- This makes long backfills resumable: if a run is interrupted, re-running continues from where the cache left off. Because the coverage is tracked as absolute timestamps, it remains correct even if you change the `--historydays` value between runs.
+
+If the database already contains the cached range and you only want to fetch the newest data, pass `--skiprestore` to skip the CSV-to-database restore step. On VictoriaMetrics this is worth doing whenever the restore is redundant, since re-writing a reading adds a sample there rather than replacing one unless deduplication is enabled — see the note under [Configuration](#configuration).
+
+Note that `--historydays` is silently clamped to `maxHistoryDays` (default `720`). If your cache reaches back further than that, raise `maxHistoryDays` too, or the restore stops short without telling you.
+
+#### Enabling the cache
+
+The cache is purely additive, so it can be turned on at any time — but it only mirrors what Vuegraf collects *from that point on*.
+
+- **New installation.** Enable `csvCacheEnabled` before your first run. Every hourly and daily point is then mirrored as it is collected, and the CSV grows into a complete record alongside the database.
+- **Existing installation.** Turning the setting on starts an empty CSV; it does not export the history already sitting in the database. To seed the cache from Emporia, run once with `--historydays` covering the range you want. That populates both the CSV and the database, and re-written points overwrite the existing ones rather than duplicating them.
+- **Existing CSV, missing manifest.** If the manifest is deleted but the CSV survives, coverage is bootstrapped by scanning the CSV once on the next run. That scan sees only the first and last timestamps, so it cannot detect interior gaps; delete both files to force a complete re-probe.
+
+> **Series names are the cache's identity.** A reading is keyed by its device and channel name, so renaming a channel makes the new name a *different* series: history keeps accumulating under the old name and the new one starts empty, in the CSV and in the database alike. This is longstanding Vuegraf behaviour rather than anything the cache introduces, but the cache makes it durable. Settle your `devices[].channels` names (see [Channel Names](#channel-names)) before collecting history you care about.
+>
+> The same applies to the *absence* of a name map: with no `channels` entry for a device, Vuegraf falls back to naming circuits `<Device>-<channelNum>`. Adding descriptive names later renames every one of those series at that instant.
+
+> **Nesting a device changes what its parent's series means.** Emporia deducts a nested device's usage from the channel it sits under, and Vuegraf restores it so a reading means the same thing whoever collected it. Nest a plug under a circuit — or move it — and every reading of that parent from then on measures something different from the ones before it. The cache faithfully records both, so the file spans two definitions with a step at the moment you changed it.
+>
+> Emporia's history API answers as-was: re-fetching an old range returns what was true then, not what today's tree would imply. So a hierarchy change cannot be repaired by re-running `--historydays`, and Vuegraf does not try — reconciling two measurement definitions needs judgement about which one you want, not code. If you change nesting and want one consistent lens over the whole archive, start the cache clean. Otherwise, note the date you changed it.
 
 ### Channel Names
 
@@ -199,6 +271,182 @@ You can also explicity define the channel and circuit names by using a dictionar
                 }
             ]
 ```
+
+### Device Hierarchy and Net Balance
+
+Emporia allows devices to be nested: smart plugs under a circuit, and circuits feeding subpanels. A real installation is therefore a tree, but Vuegraf records every device and channel as an independent, flat series, with no notion that one reading is physically a subset of another. That leads to two problems:
+
+- **Double counting.** A subpanel's energy is measured by the parent's feed circuit *and* by the subpanel device (and again by the subpanel's own circuits), so naively summing device series counts the same watts two or three times. Correct totals require hand-maintained exclusion lists in your queries.
+- **No true balance.** Emporia's per-device `Balance` channel nets out only that one device's own circuits. It does not subtract a separately measured subpanel or plug, so no series answers "how much did this panel use that isn't already itemized somewhere below it?"
+
+This feature is **off by default**. Describe your panel tree once in the configuration and Vuegraf will emit a correct per-level balance for both live and historical data. It is purely additive: raw Emporia readings, including the native `Balance` channel, are written unchanged.
+
+#### Declaring the tree
+
+Add an optional `parent` to any device in the account's `devices` list. A `parent` may name another device *or* a channel/circuit name, since a single circuit can feed several plugs or a subpanel:
+
+```json
+            "devices": [
+                { "name": "Main Panel", "channels": ["Heat Pump", "Garage Feed", "Media Circuit"] },
+
+                { "name": "Garage Subpanel", "parent": "Garage Feed", "channels": ["Garage Lights", "Freezer"] },
+
+                { "name": "TV Console",   "parent": "Media Circuit" },
+                { "name": "Network Rack", "parent": "Media Circuit" },
+
+                { "name": "Sump Pump", "parent": "Main Panel" }
+            ]
+```
+
+That configuration describes this tree. `Main Panel` and `Garage Subpanel` are Vue devices; `Heat Pump`, `Garage Feed`, and `Media Circuit` are circuits on the main panel; the last three are smart plugs:
+
+```
+Main Panel                        (device, mains)
+├── Heat Pump                     (circuit, leaf)
+├── Garage Feed                   (circuit, feeds the subpanel)
+│   └── Garage Subpanel           (device, mains)
+│       ├── Garage Lights         (circuit, leaf)
+│       └── Freezer               (circuit, leaf)
+├── Media Circuit                 (circuit, feeds two plugs)
+│   ├── TV Console                (plug, leaf)
+│   └── Network Rack              (plug, leaf)
+└── Sump Pump                     (plug on the panel's unmetered remainder)
+```
+
+Two things in that example are worth calling out, because they are the cases a flat series list gets wrong:
+
+- **`Garage Subpanel` hangs off `Garage Feed`, a circuit, not off `Main Panel` directly.** The subpanel's energy is physically measured twice — once by the feed circuit in the main panel, once by the subpanel's own mains. Naming the circuit as the parent is what tells Vuegraf those two readings are the same watts.
+- **`Sump Pump` hangs off `Main Panel` itself.** It is a plug on some circuit the panel does not meter individually, so its parent is the panel, and it comes out of the panel's own remainder rather than any circuit's.
+
+Edges come from two places and are merged into one tree:
+
+- **Explicit** `parent` entries from the configuration. This is the only way to express a link *across* Vue devices (subpanel to panel), which Emporia does not report.
+- **Implicit** edges from the nested devices Emporia reports for plugs it natively nests inside a single device.
+
+Where both exist and disagree, the explicit configuration wins and a warning is logged once.
+
+If your account's tree comes entirely from Emporia's own nesting and needs no `parent` entries, turn the feature on for that account with `"hierarchyEnabled": true` alongside `devices`.
+
+#### What gets written
+
+For every node that has children, Vuegraf writes a new channel series named `<node> Net Balance`:
+
+```
+Net Balance(node) = total(node) - sum(total(child) for each direct child)
+```
+
+A panel or subpanel's total is its mains (`1,2,3`) reading; a circuit's total is its channel reading. A circuit that feeds children therefore gets its own balance, which is the portion of that circuit not itemized by the plug or subpanel below it. Leaf nodes have nothing beneath them, so they get no balance series.
+
+Summing every `Net Balance` series plus the totals of every leaf reconstructs your whole-home total with nothing counted twice — no query-side exclusion lists.
+
+##### A worked example
+
+Take the tree above, and suppose one hour is collected with these readings (average watts):
+
+| Series | Reading |
+|---|---|
+| `Main Panel` (mains) | 4000 |
+| `Heat Pump` | 1500 |
+| `Garage Feed` | 900 |
+| `Garage Subpanel` (mains) | 800 |
+| `Garage Lights` | 100 |
+| `Freezer` | 250 |
+| `Media Circuit` | 400 |
+| `TV Console` | 150 |
+| `Network Rack` | 200 |
+| `Sump Pump` | 300 |
+
+Vuegraf adds one `Net Balance` series per node that has children:
+
+| New series | Arithmetic | Value |
+|---|---|---|
+| `Main Panel Net Balance` | 4000 − (1500 + 900 + 400 + 300) | 900 |
+| `Garage Feed Net Balance` | 900 − 800 | 100 |
+| `Garage Subpanel Net Balance` | 800 − (100 + 250) | 450 |
+| `Media Circuit Net Balance` | 400 − (150 + 200) | 50 |
+
+Read them as "energy at this level that nothing below it accounts for": 900 W of main-panel load on circuits with no CT at all, 100 W lost in or tapped off the garage feed before the subpanel, 450 W of unmetered garage circuits, and 50 W on the media circuit that is not the TV or the rack.
+
+The four balances plus the six leaves total exactly 4000 W — the main panel reading, reconstructed with nothing double counted:
+
+```
+900 + 100 + 450 + 50                          (balances)
+  + 1500 + 100 + 250 + 150 + 200 + 300        (leaves)
+= 4000
+```
+
+Naively summing the ten raw series instead gives 8600 W, because the subpanel, its feed, and the plugs are each counted at two or three levels.
+
+##### What the raw series already contain
+
+Worth knowing before writing your own queries, because Emporia's API and its mobile app do not present a circuit the same way:
+
+- **A circuit's reading already includes any plug nested under it.** The API does not deduct there, so a plug's energy is counted twice if you add the plug's own series to its parent circuit's. Note that the Emporia mobile app *does* deduct at the circuit, so the same circuit reads higher through the API than it does in the app.
+- **A device's mains is deducted**, and Vuegraf adds the nested device back so the value means the whole panel. That asymmetry is Emporia's, not Vuegraf's; the add-back exists so a mains reading and a circuit reading can be interpreted the same way.
+
+Vuegraf writes the raw series through untouched, so **any total you build by adding series yourself has to exclude a nested device once it is already inside its parent**. That is exactly the bookkeeping `Net Balance` removes: sum the balances plus the leaves and every reading is counted once, whatever is nested where.
+
+If your service has more than one top-level panel (dual mains), Vuegraf synthesizes a virtual root named `<account> Panel` and writes the sum of those panels under that name, giving you a single correct whole-account total. Emporia has no way to express a root above independent mains.
+
+#### Scope: hourly and daily only
+
+Balance is a subtraction across nodes, so it is only meaningful when a node and all of its children are sampled at the same instant. Hourly and daily points are collected once per period rollover, for the just-closed period, in a single API call — so every device lands one point at the same timestamp for a period that is already complete. Per-minute points are produced by a per-channel path that does not line up within a cycle, so **no minute-resolution Net Balance is emitted**.
+
+Both the live rollover and the `--historydays` backfill produce these aligned groups, so both are covered. With the CSV cache enabled, the balances flow into the CSV automatically, since they are appended to the same list that gets written.
+
+#### Settings
+
+```
+hierarchyBalanceEpsilonWatts: 5.0
+hierarchyNegativeBalanceAbort: false
+hierarchyAggregateSettleSecs: 120
+```
+
+- `hierarchyBalanceEpsilonWatts` (default `5.0`): a negative balance smaller than this is treated as rounding noise and clamped silently.
+- `hierarchyNegativeBalanceAbort` (default `false`): a balance more negative than the epsilon means a child is measuring more than its parent, which usually means the tree is wrong. By default this logs a warning (at most once per node per hour) and clamps the emitted value to zero. Set this to `true` to raise instead, failing the collection cycle loudly.
+- `hierarchyAggregateSettleSecs` (default `120`, capped at 1800): how long to wait after a period closes before collecting it, giving Emporia time to finalize its averages. Only applied when a hierarchy is active; the deferred period is picked up on a later cycle.
+
+A `parent` that does not resolve to a real device or channel, a cycle in the tree, or a name that refers to both a device and a channel is reported at startup with the offending node named, rather than silently producing wrong balances.
+
+#### Enabling the hierarchy
+
+Nothing about existing data changes when you turn this on: the raw Emporia series keep their names, their values, and their history. The feature only *adds* `Net Balance` series, so existing dashboards and queries keep working untouched.
+
+- **New installation.** Name your channels first (see [Channel Names](#channel-names)), then declare the tree. Balances are emitted from the first hourly rollover onward.
+- **Existing installation.** Add the `parent` entries and restart. Vuegraf computes balances only for points it collects from then on, so the new series begin at that moment and existing points get no balance retroactively. To fill them in for data you already have, re-run once with `--historydays`; re-written points overwrite the existing ones in the database rather than duplicating them.
+- **Upgrading Vuegraf without configuring a tree.** The feature stays off, and collection behaves exactly as before. It activates only when an account declares a `parent` or sets `"hierarchyEnabled": true`.
+
+Two things to check before declaring a tree on an established installation:
+
+- **Node names are series names.** A `parent` must name a device or channel exactly as Vuegraf names its series — which comes from `devices[].channels`, not from the Emporia app. If a device has no `channels` map, its circuits are named `<Device>-<channelNum>`, and that is the name a `parent` must use. Adding descriptive names later renames those series and forks their history, so settle the names first.
+- **Every node name must be unique.** Vuegraf refuses to start if one name refers to both a device and a channel — a common case is a feed circuit labelled with the name of the subpanel it feeds ("Garage Subpanel" as both a circuit and the Vue device). Rename one of them; in the example above the circuit is `Garage Feed` for exactly this reason.
+
+If a negative balance appears after enabling, the tree is usually claiming a child that is not actually below its parent. `hierarchyNegativeBalanceAbort` turns those warnings into hard failures while you are validating a new tree.
+
+### Negative Readings
+
+```
+clampNegativeUsage: false
+```
+
+- `clampNegativeUsage` (default `false`): when enabled, any reading below zero is recorded
+  as zero, and a warning naming the device and channel is logged at most once per series
+  per hour.
+
+Emporia's derived `Balance` channel is the device total minus its circuits, so it goes
+negative whenever the parts read higher than the whole — a single mis-scaled channel (a
+120V circuit configured as 240V, say) or ordinary CT tolerance is enough. That is a
+measurement fault rather than energy flowing backwards, and left alone it distorts every
+sum and graph built on the series. This is the same treatment the hierarchy already gives
+its own `Net Balance`.
+
+**Leave this off if anything in your system can produce power.** On a solar or battery
+install a negative reading is legitimate — it means export — and clamping would discard
+real data. Enable it only where a negative value can only be an error.
+
+Note that clamping hides the symptom, not the cause: the throttled warning is there so a
+standing fault stays visible. A channel that keeps needing to be clamped usually has the
+wrong circuit type or multiplier configured in the Vue app.
 
 ### Station Names
 
@@ -302,6 +550,8 @@ options:
                         Starts executing by pulling history of Hours and Day data for specified number of days.
                         example: --load-history-day 60
   --resetdatabase       Drop database and create a new one
+  --skiprestore         During history backfill, skip restoring the cached CSV range into the database
+                        (assume it is already present) and only fetch/true-up the uncovered range
 ```
 
 ## Alerts
@@ -417,6 +667,22 @@ To include an Emporia smart plug in the configuration, add each plug as it's own
                 }
             ]
 ```
+
+### Plugs assigned to a circuit
+
+The Vue app lets you attach a smart plug (or a second monitor) to the circuit that feeds
+it, so its consumption is shown as part of that circuit. When you do, Emporia's
+device-list endpoint reports the parent circuit **net of** the attached device, while the
+history endpoint used by `--historydays` reports the circuit whole. Vuegraf restores the
+circuit's own total in both cases, so a circuit series always means "everything flowing
+through this circuit" and the attached device's series is the itemization of the
+sub-metered part.
+
+That keeps a backfilled hour and a live hour comparable — without it, the same hour holds
+different values depending on which path collected it — and it is what lets the
+[device hierarchy](#device-hierarchy-and-net-balance) subtract a child from its parent
+without counting it twice. Device totals (the `1,2,3` mains channel) are never adjusted;
+Emporia does not deduct attached devices from those.
 
 ## Docker Compose
 

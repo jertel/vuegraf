@@ -136,6 +136,20 @@ class TestDeviceFunctions(unittest.TestCase):
         # Should default to device name
         self.assertEqual(name, 'Main Panel')
 
+    def test_lookupChannelName_main_ignores_a_custom_channel_name(self):
+        """A mains channel renamed in the Emporia app still reports the device name.
+
+        The hierarchy indexes a device node by that device name, so the mains series has
+        to keep carrying it -- otherwise the device's total would not be found and its
+        Net Balance would be skipped.
+        """
+        device_module.populateDevices(self.account)
+        channel_to_lookup = VueDeviceChannel()
+        channel_to_lookup.device_gid = 123
+        channel_to_lookup.channel_num = '1,2,3'
+        channel_to_lookup.name = 'Whole Home Mains'
+        self.assertEqual(device_module.lookupChannelName(self.account, channel_to_lookup), 'Main Panel')
+
     def test_lookupChannelName_from_list_config(self):
         """Test looking up channel name from list-based config."""
         device_module.populateDevices(self.account)  # Populate first

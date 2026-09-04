@@ -25,10 +25,12 @@ import traceback
 from pyemvue.enums import Scale
 
 # Local imports
+from vuegraf.cache import writeRollupPoints
 from vuegraf.collect import collectHistoryUsage, collectUsage
 from vuegraf.config import getConfigValue, initConfig
 from vuegraf.device import initDeviceAccount
 from vuegraf.destination import closeConnection, initConnection, writeDataPoints
+from vuegraf.hierarchy import applyBalances, isAggregateSettled
 from vuegraf.time import getCurrentHourUTC, getCurrentDayLocal, getTimeNow
 
 
@@ -95,19 +97,34 @@ def run():
                     collectUsage(config, account, None, nowLagUTC, collectDetails, usageDataPoints,
                                  detailedStartTimeUTC, Scale.MINUTE.value)
 
+                    # Hourly and daily rollups are collected together: they are mirrored to the
+                    # CSV cache, and they are the aligned, settled input the hierarchy needs.
+                    rollupPoints = []
+
                     # Collect hourly averages if the hour just changed. Use UTC time for this to avoid DST
-                    # issues.
+                    # issues. The hour that just closed ends at curHourUTC.
                     if detailedHoursEnabled and curHourUTC != prevHourUTC:
-                        collectUsage(config, account, prevHourUTC, prevHourUTC, False, usageDataPoints, None, Scale.HOUR.value)
-                        prevHourUTC = curHourUTC
+                        if isAggregateSettled(config, curHourUTC, nowUTC):
+                            collectUsage(config, account, prevHourUTC, prevHourUTC, False, rollupPoints, None, Scale.HOUR.value)
+                            prevHourUTC = curHourUTC
 
                     # Collect daily averages if the day just changed. Note that this is local time
                     # If used UTC was used it would attempt to collect the day's average before the local
-                    # day was complete (for UTC-X timezones)
+                    # day was complete (for UTC-X timezones). The day that just closed ends at prevDayLocal.
                     if detailedDaysEnabled and curDayLocal != prevDayLocal:
                         prevDayUTC = prevDayLocal.astimezone(datetime.UTC)
-                        collectUsage(config, account, prevDayUTC, prevDayUTC, False, usageDataPoints, None, Scale.DAY.value)
-                        prevDayLocal = curDayLocal
+                        if isAggregateSettled(config, prevDayUTC, nowUTC):
+                            collectUsage(config, account, prevDayUTC, prevDayUTC, False, rollupPoints, None, Scale.DAY.value)
+                            prevDayLocal = curDayLocal
+
+                    # Net Balance only nets time-aligned samples, so it runs on the rollups alone,
+                    # and before the mirror below so the balances reach the CSV copy as well.
+                    applyBalances(config, rollupPoints)
+
+                    # Keep the CSV copy as current as InfluxDB. These rollups are settled and
+                    # time-aligned across devices, unlike the minute points, which are not mirrored.
+                    writeRollupPoints(config, account, rollupPoints)
+                    usageDataPoints.extend(rollupPoints)
 
             except Exception:
                 logger.error('Failed to record new usage data: {}'.format(sys.exc_info()))

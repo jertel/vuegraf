@@ -37,6 +37,17 @@ def convertToLocalDayInUTC(config, timestamp):
     return timestamp
 
 
+def getLocalDayStartUTC(config, timestamp):
+    """Midnight of the timestamp's local day, expressed in UTC.
+
+    The lower edge of the day whose summary is still accumulating, so it is the
+    newest instant everything before which has settled at every mirrored tier.
+    """
+    timestamp = timestamp.astimezone(getTimezone(config))
+    timestamp = timestamp.replace(hour=0, minute=0, second=0, microsecond=0)
+    return timestamp.astimezone(pytz.UTC)
+
+
 def calculateHistoryTimeRange(config, nowLagUTC, startTimeUTC, historyIncrements):
     historySizeDays = 20  # Default to 20 days of history per increment
     timezone = getTimezone(config)

@@ -264,3 +264,69 @@ def test_init_config_custom_verbose(mock_config_logger, mock_init_logging, mock_
     log_message = mock_config_logger.info.call_args[0][0]
     assert "'timezone': 'UTC'" in log_message
     assert "'detailedDataEnabled': True" in log_message
+
+
+# ---------------------------------------------------------------------------
+# Hierarchy config validation
+# ---------------------------------------------------------------------------
+
+def hierarchyConfig(devices, **accountOverrides):
+    account = {'name': 'Home', 'devices': devices}
+    account.update(accountOverrides)
+    return {'accounts': [account]}
+
+
+def test_is_hierarchy_configured_off_by_default():
+    """An account that says nothing about parents keeps the existing flat behavior."""
+    assert config.isHierarchyConfigured({'name': 'Home', 'devices': [{'name': 'Panel'}]}) is False
+    assert config.isHierarchyConfigured({'name': 'Home'}) is False
+    assert config.isHierarchyConfigured({'name': 'Home', 'devices': None}) is False
+
+
+def test_is_hierarchy_configured_by_parent_or_flag():
+    assert config.isHierarchyConfigured({'devices': [{'name': 'Plug', 'parent': 'Panel'}]}) is True
+    assert config.isHierarchyConfigured({'hierarchyEnabled': True, 'devices': [{'name': 'Panel'}]}) is True
+
+
+def test_validate_hierarchy_config_skips_accounts_that_did_not_opt_in():
+    """Legacy configs are never rejected, even ones that would fail the checks."""
+    config.validateHierarchyConfig({'accounts': [{'name': 'Home', 'devices': [{}, {}]}]})
+
+
+def test_validate_hierarchy_config_accepts_a_valid_tree():
+    config.validateHierarchyConfig(hierarchyConfig([
+        {'name': 'Main Panel', 'channels': ['Garage Feed']},
+        {'name': 'Garage Subpanel', 'parent': 'Garage Feed'},
+    ]))
+
+
+def test_validate_hierarchy_config_requires_a_device_name():
+    with pytest.raises(ValueError, match='every device must have a name'):
+        config.validateHierarchyConfig(hierarchyConfig(
+            [{'parent': 'Main Panel'}], hierarchyEnabled=True))
+
+
+def test_validate_hierarchy_config_rejects_a_non_string_name():
+    with pytest.raises(ValueError, match='every device must have a name'):
+        config.validateHierarchyConfig(hierarchyConfig([{'name': 7}], hierarchyEnabled=True))
+
+
+def test_validate_hierarchy_config_rejects_duplicate_device_names():
+    with pytest.raises(ValueError, match='duplicate device name "Panel"'):
+        config.validateHierarchyConfig(hierarchyConfig(
+            [{'name': 'Panel'}, {'name': 'Panel'}], hierarchyEnabled=True))
+
+
+def test_validate_hierarchy_config_rejects_an_empty_parent():
+    with pytest.raises(ValueError, match='"parent" of device "Plug" must be a non-empty string'):
+        config.validateHierarchyConfig(hierarchyConfig([{'name': 'Plug', 'parent': ''}]))
+
+
+def test_validate_hierarchy_config_rejects_a_self_parent():
+    with pytest.raises(ValueError, match='device "Plug" cannot be its own parent'):
+        config.validateHierarchyConfig(hierarchyConfig([{'name': 'Plug', 'parent': 'Plug'}]))
+
+
+def test_validate_hierarchy_config_names_an_unnamed_account():
+    with pytest.raises(ValueError, match='account "<unnamed>"'):
+        config.validateHierarchyConfig({'accounts': [{'hierarchyEnabled': True, 'devices': [{'name': 3}]}]})
