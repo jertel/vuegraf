@@ -74,3 +74,11 @@ def initDeviceAccount(config, account):
         account['vue'].login(username=account['email'], password=account['password'])
         logger.info('Emporia Login completed sucessfully')
         populateDevices(account)
+
+        # Imported here because the hierarchy names its nodes with the lookups above.
+        from vuegraf.hierarchy import buildHierarchy
+        account['hierarchy'] = buildHierarchy(account)
+        if account['hierarchy'] is not None and not (config.get('detailedDataHoursEnabled', True) or
+                                                     config.get('detailedDataDaysEnabled', True)):
+            logger.warning('Account "{}" has a device hierarchy, but detailedDataHoursEnabled and detailedDataDaysEnabled '
+                           'are both off, so Net Balances will only be written by --historydays'.format(account.get('name')))

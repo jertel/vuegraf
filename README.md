@@ -418,6 +418,109 @@ To include an Emporia smart plug in the configuration, add each plug as it's own
             ]
 ```
 
+## Nested Devices and Net Balance
+
+Emporia lets devices be nested: a smart plug under a circuit or directly under a panel, or a subpanel fed from a circuit on another panel. An installation is therefore a tree, but Vuegraf records every device and channel as its own series. Optionally, Vuegraf can also write a **Net Balance** for every level of that tree: the part of a panel's or circuit's usage that nothing beneath it accounts for. This is off by default, and turning it on never changes any existing series; it only adds new ones.
+
+### How Emporia reports nested devices
+
+Vuegraf gets its data from Emporia in two ways, and they handle nesting differently. That decides what the existing series mean.
+
+**Live collection** (every minute, and the hourly and daily rollups) asks for every device on the account in a single request.
+
+- A device nested in the Emporia app comes back inside the channel it is nested under, not as a separate device.
+- A circuit is reported *net*: minus the live readings of the devices nested beneath it, floored at zero. Emporia only subtracts nested devices that are part of the same request, which is why Vuegraf asks for every device at once. A panel requested on its own gets its circuits back raw.
+- A panel's mains is never reduced, even when a device is nested directly on it.
+- `Balance` is the mains minus the *raw* circuits and minus any device nested directly on the mains. It is not floored. So a panel's circuits, the devices nested under those circuits, the devices nested on its mains, and its `Balance` add up to the mains. The exception is a circuit that reads less than what is nested beneath it. Emporia floors that circuit at zero, but `Balance` still subtracts its lower raw reading, so the pieces come to more than the mains by the difference (see [When the numbers do not fit](#when-the-numbers-do-not-fit)).
+- Some responses also carry channels that are not circuits, such as `TotalUsage`, `MainsFromGrid` and `MainsToGrid`. Vuegraf writes them as returned, as series named like `Main Panel-TotalUsage`. They overlap the mains, so leave them out of any sum.
+- For a panel with no mains sensor, Emporia makes up the mains as the sum of its circuits and returns no `Balance`.
+
+**History collection** (`--historydays`) asks for each channel separately.
+
+- Every circuit is reported *raw*, including anything nested beneath it. This is also what the app's history view shows, which is why the app offers `Balance` only in its real-time view.
+- There is no `Balance`, and none of the extra channels above.
+- A panel with no mains sensor has no mains reading at all.
+
+Otherwise the two paths agree. Hourly readings match exactly; daily and minute readings can differ very slightly.
+
+So for a device nested in the app, the live series already avoid double counting. What Emporia cannot know about are links it has not been told: a subpanel wired from a circuit on a different Vue, or a plug the app does not nest. Neither of Emporia's two views gives a history backfill a remainder for each level.
+
+### Caution: one circuit series, two meanings
+
+Both collection paths write a circuit to the same series: for example `Main Panel / Office`, tagged `Hour`. For a circuit with a device nested beneath it in the app, the two paths store different values for the same hour. This is Emporia's behaviour and is unchanged by this feature, with or without the hierarchy enabled.
+
+Take an hour where the Office circuit's CT measures 113 Wh, and a Desk plug nested under Office in the app measures 80 Wh of that. The panel's mains reads 1,000 Wh, and its other circuits 700 Wh.
+
+| Series | Hour collected live | Same hour from `--historydays` |
+|---|---|---|
+| `Main Panel` (mains) | 1,000 | 1,000 |
+| `Office` | **33** (Desk already subtracted) | **113** (raw, as the app's history view shows) |
+| `Desk` | 80 | 80 |
+| other circuits | 700 | 700 |
+| `Main Panel-Balance` | 187 | *not written* |
+| circuits + plugs + `Balance` | 1,000 | 893, with no `Balance` to add |
+| circuits + plugs + (mains − circuits) | 1,000 | **1,080**, more than the mains |
+
+In the backfilled hour, the Desk's 80 Wh is counted twice: once inside `Office` and again as `Desk`. Any query that adds circuits and plugs, or that makes up for the missing `Balance` as the mains minus the circuits, comes out higher than the mains.
+
+Because both paths write the same series, what an hour holds depends on which path wrote it last. Hours collected live hold 33, hours only ever backfilled hold 113, and running `--historydays` over hours already collected live replaces their 33 with 113. A graph of `Office` can therefore step between the two at the edge of a backfill. Only circuits with a device nested beneath them are affected. Panel mains, plugs and circuits with nothing nested beneath them read the same on both paths. One exception: a panel with no mains sensor has a mains series only for hours collected live.
+
+The Net Balance series below don't have this problem: they are computed the same way from either path. Here `Office Net Balance` is 33 and `Main Panel Net Balance` is 187 for both the live and the backfilled hour, and 33 + 80 + 700 + 187 = 1,000.
+
+### Turning it on
+
+Add `"hierarchyEnabled": true` to an account to use the nesting from the Emporia app as it is. Add a `parent` to a device to describe a link the app does not have. A parent may name another device, meaning the device hangs off that panel's mains, or a circuit name, meaning it is fed from that circuit. Declaring any `parent` also turns the feature on.
+
+```json
+"hierarchyEnabled": true,
+"devices": [
+    { "name": "Main Panel", "channels": { "1": "Garage Feed", "2": "Kitchen" } },
+    { "name": "Garage Subpanel", "parent": "Garage Feed" },
+    { "name": "Aquarium Plug", "parent": "Main Panel" }
+]
+```
+
+A `parent` that repeats the app's nesting is fine. One that contradicts it is refused at startup: Emporia reduces the parent according to its own nesting whatever the config says, so no balance could come out right. Change the nesting in the app, or remove the `parent`. Each device may appear only once in `devices`, and a name used as a `parent` must be unique across the account's devices and circuits. Readings are matched by name, so with the hierarchy on, two readings may not share a series. Two devices with the same name, or two circuits of one panel with the same name, are refused at startup; rename one in the Emporia app or in `channels`. The same circuit name on different panels is fine.
+
+Net Balances are derived from the hourly and daily averages, so for an account that opts in, those are collected even when `detailedDataEnabled` is off. `detailedDataHoursEnabled` and `detailedDataDaysEnabled` still turn either one off. If both are off, only `--historydays` writes Net Balances, and a warning says so at startup.
+
+For a split-feed service, or any grouping with no meter of its own, declare a **virtual** device and place the real panels under it. Its total is written as a series named after it: the sum of the parts that reported. If a part reports nothing for a period, it is left out of that period's total, so the total dips rather than disappearing. Vuegraf logs a warning when a part stops reporting and a note when it comes back.
+
+```json
+{ "name": "Service", "virtual": true },
+{ "name": "Left Panel", "parent": "Service" },
+{ "name": "Right Panel", "parent": "Service" }
+```
+
+When an account has more than one top-level panel, Vuegraf also writes the whole account's total as `<account> Panel`, the sum of those panels. This could be the two feeds of a split service, or a declared virtual device plus a detached building. A smart plug that is not placed anywhere is left out, since there is no way to know which circuit it draws from. A panel that reports nothing is left out of a period's total as described above, and counted again once it reports. A panel that is actually fed from another panel must be given a `parent`, or it is counted twice in this total.
+
+### What is written
+
+For each hourly and daily reading, live or backfilled:
+
+- `<panel> Net Balance`, for every panel: the part of its mains no circuit or nested device accounts for. With nothing configured, this equals Emporia's `Balance`, and it is also filled in for backfilled history, where Emporia provides no `Balance`.
+- `<circuit> Net Balance`, for every circuit with something nested under it: the part of the circuit nothing nested under it accounts for. For a device nested in the app, this equals Emporia's live reading of the circuit. The app's history view shows the circuit raw, which is this plus what is nested beneath it.
+- `<virtual>`, the total of a virtual device.
+
+Minute and second data are not included.
+
+**To total a panel, or the whole service,** add up its Net Balances and every reading with nothing beneath it: the plugs, the circuits with nothing nested, and the panels' own Net Balances. Every watt is then counted exactly once. Don't also add Emporia's `Balance`: it is already inside the panel's Net Balance. Leave out `TotalUsage`, `MainsFromGrid` and `MainsToGrid` too, since they overlap the mains.
+
+### When the numbers do not fit
+
+If a node reads less than what is beneath it, a meter or the tree is wrong, and the pieces will not add up to the total. Vuegraf logs a warning naming the node and the shortfall, at most once an hour per node.
+
+- A circuit's Net Balance is floored at zero, as Emporia floors the circuit itself. In live data Emporia hides the shortfall, so Vuegraf measures it from the gap it leaves in the panel's `Balance`. This usually means a missing or misconfigured CT on that circuit.
+- A panel's Net Balance is not floored, like Emporia's `Balance`. If a device the config places on the mains causes the shortfall, the warning says so: that device is probably fed from one of the panel's circuits instead.
+- A node that reported nothing gets no Net Balance for that period. Whatever did report beneath it still comes off its parent, so nothing is counted twice. For example, a lamp on a circuit whose CT reported nothing is taken out of the panel's remainder, and a subpanel whose mains reported nothing is taken off its feed by its circuits' readings. A device with nothing reporting at all counts as zero, meaning none of its parent's usage was itemized by it.
+
+For example, suppose a subpanel's feed circuit CT reads 0 Wh for an hour, perhaps because it is missing or clamped on the wrong wire, while the subpanel's own mains reads 36 Wh. The feed's Net Balance is floored at 0, and the subpanel's 36 Wh is still counted beneath it. The panel's tree then sums to its mains plus 36 Wh, and Vuegraf warns that the panel has circuits reading less than the devices nested beneath them, naming the feed. Likewise, placing a subpanel on a panel's mains when it is really fed through one of that panel's circuits counts it twice: once inside the circuit, and again below the mains. That drives the panel's Net Balance negative, and the warning names the device to check.
+
+| Setting | Default | Meaning |
+|---|---|---|
+| `hierarchyBalanceEpsilonWatts` | `5.0` | A shortfall smaller than this average power is treated as measurement tolerance and not reported. |
+| `hierarchyNegativeBalanceAbort` | `false` | When `true`, an hourly or daily period with a larger shortfall is not recorded at all, raw readings included, and an error is logged, so the problem cannot go unnoticed. Only that period is dropped: live collection and `--historydays` carry on with the next. A closed period that does not balance won't start to, so it isn't retried; once the tree or meter is fixed, `--historydays` can fill it in. |
+
 ## Docker Compose
 
 For those that want to run Vuegraf using Docker Compose, the following files have been included: `docker-compose.yaml.template` and `docker-compose-run.sh`. Copy the`docker-compose.yaml.template` file to a new file called `docker-compose.yaml`. In the newly copied file, `vuegraf.volumes` values will need to be changed to the same directory you have created your vuegraf.json file. Additionally, adjust the persistent host storage path for the InfluxDB data volume.

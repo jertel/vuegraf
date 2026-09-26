@@ -6,9 +6,11 @@
 ## New features
 - Added image to GHCR - @jertel
 - Added support for writing directly to VictoriaMetrics, configured via a `victoriaMetrics` section. May replace InfluxDB or run alongside it, in which case each database receives only the data points it is missing - @clara-j
+- Added optional per-level Net Balance series for nested devices (plugs, subpanels) and virtual groupings such as split-feed services, for live and historical hourly/daily data. Off unless an account sets `hierarchyEnabled` or a device declares a `parent`; existing series are unchanged - [#211](https://github.com/jertel/vuegraf/discussions/211)
 
 ## Other changes
 - Added missing DetailedDataEnabled variable values: Day, Hour - @jertel
+- Fixed hourly and daily averages being collected only for the first account when more than one account is configured: each account now tracks its own hour and day rollover.
 - Fix minute-history backfill loop wedging permanently when a channel's parent has no historical minute data (negative cache with 1h TTL; invisible to channels that have data). - [#209](https://github.com/jertel/vuegraf/issues/209) - @MMeffert
 
 # 1.10.1
