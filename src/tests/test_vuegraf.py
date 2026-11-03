@@ -610,3 +610,82 @@ def test_main_entry_point(_mock_main_func):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+@pytest.mark.parametrize('hasHierarchy, detailedDataEnabled, expectedScales', [
+    (False, False, ['1MIN']),               # unchanged: rollups are detail data
+    (False, True, ['1MIN', '1H', '1D']),
+    (True, False, ['1MIN', '1H', '1D']),    # a hierarchy needs them for its Net Balances
+])
+def test_hourly_and_daily_rollups_follow_the_hierarchy(hasHierarchy, detailedDataEnabled, expectedScales):
+    config = dict(DUMMY_CONFIG, args=MagicMock(historydays=0), accounts=[{'name': 'Home'}])
+    values = {'maxHistoryDays': 30, 'updateIntervalSecs': 60, 'detailedIntervalSecs': 300, 'lagSecs': 60,
+              'detailedDataEnabled': detailedDataEnabled, 'detailedDataHoursEnabled': True, 'detailedDataDaysEnabled': True}
+
+    def initAccount(_config, account):
+        account['hierarchy'] = object() if hasHierarchy else None
+
+    scales = []
+    Scale = MagicMock()  # pylint: disable=invalid-name
+    Scale.MINUTE.value, Scale.HOUR.value, Scale.DAY.value = '1MIN', '1H', '1D'
+    day1 = datetime.datetime(2025, 4, 1, tzinfo=datetime.timezone.utc)
+    with patch('vuegraf.vuegraf.initConfig', return_value=config), patch('vuegraf.vuegraf.initConnection'), \
+            patch('vuegraf.vuegraf.initDeviceAccount', side_effect=initAccount), \
+            patch('vuegraf.vuegraf.collectUsage', side_effect=lambda *args: scales.append(args[-1])), \
+            patch('vuegraf.vuegraf.writeDataPoints'), patch('vuegraf.vuegraf.getConfigValue', side_effect=lambda c, k: values[k]), \
+            patch('vuegraf.vuegraf.getTimeNow', return_value=day1), \
+            patch('vuegraf.vuegraf.getCurrentHourUTC', side_effect=[12, 13]), \
+            patch('vuegraf.vuegraf.getCurrentDayLocal', side_effect=[day1, day1 + datetime.timedelta(days=1)]), \
+            patch('vuegraf.vuegraf.pauseEvent') as pause, patch('vuegraf.vuegraf.Scale', Scale):
+        pause.wait.side_effect = lambda _: setattr(vuegraf, 'running', False)
+        vuegraf.run()
+    assert scales == expectedScales
+
+
+def runCycles(accounts, hours, days, collect, values=None):
+    """Runs vuegraf.run for len(hours) - 1 cycles, recording collectUsage calls."""
+    config = dict(DUMMY_CONFIG, args=MagicMock(historydays=0), accounts=accounts)
+    values = values or {'maxHistoryDays': 30, 'updateIntervalSecs': 60, 'detailedIntervalSecs': 300, 'lagSecs': 60,
+                        'detailedDataEnabled': True, 'detailedDataHoursEnabled': True, 'detailedDataDaysEnabled': True}
+    Scale = MagicMock()  # pylint: disable=invalid-name
+    Scale.MINUTE.value, Scale.HOUR.value, Scale.DAY.value = '1MIN', '1H', '1D'
+    cycles = [len(hours) - 1]
+
+    def wait(_):
+        cycles[0] -= 1
+        if cycles[0] == 0:
+            vuegraf.running = False
+
+    with patch('vuegraf.vuegraf.initConfig', return_value=config), patch('vuegraf.vuegraf.initConnection'), \
+            patch('vuegraf.vuegraf.initDeviceAccount'), patch('vuegraf.vuegraf.collectUsage', side_effect=collect), \
+            patch('vuegraf.vuegraf.writeDataPoints'), patch('vuegraf.vuegraf.getConfigValue', side_effect=lambda c, k: values[k]), \
+            patch('vuegraf.vuegraf.getTimeNow', return_value=days[0]), \
+            patch('vuegraf.vuegraf.getCurrentHourUTC', side_effect=hours), \
+            patch('vuegraf.vuegraf.getCurrentDayLocal', side_effect=days), \
+            patch('vuegraf.vuegraf.pauseEvent') as pause, patch('vuegraf.vuegraf.Scale', Scale):
+        pause.wait.side_effect = wait
+        vuegraf.run()
+
+
+def test_every_account_gets_its_hourly_and_daily_rollups():
+    """Before each account kept its own markers, the first account to collect a rollup
+    advanced them for all, and the others never collected one."""
+    calls = []
+    day1 = datetime.datetime(2025, 4, 1, tzinfo=datetime.timezone.utc)
+    runCycles([{'name': 'A'}, {'name': 'B'}], [12, 13], [day1, day1 + datetime.timedelta(days=1)],
+              lambda _c, account, *args: calls.append((account['name'], args[-1])))
+    assert calls == [('A', '1MIN'), ('A', '1H'), ('A', '1D'), ('B', '1MIN'), ('B', '1H'), ('B', '1D')]
+
+
+def test_a_failed_rollup_is_retried_for_that_account_only():
+    calls = []
+    day1 = datetime.datetime(2025, 4, 1, tzinfo=datetime.timezone.utc)
+
+    def collect(_config, account, *args):
+        calls.append((account['name'], args[-1]))
+        if calls.count(('A', '1H')) == 1 and calls[-1] == ('A', '1H'):
+            raise RuntimeError('transient Emporia error')  # A's first hourly collection only
+
+    runCycles([{'name': 'A'}, {'name': 'B'}], [12, 13, 13], [day1, day1, day1], collect)
+    assert calls == [('A', '1MIN'), ('A', '1H'), ('B', '1MIN'), ('B', '1H'),   # A's hour fails
+                     ('A', '1MIN'), ('A', '1H'), ('B', '1MIN')]                # retried for A alone

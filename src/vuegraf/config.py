@@ -119,6 +119,10 @@ def initConfig():
     setConfigDefault(config, 'timezone', None)
     setConfigDefault(config, 'maxHistoryDays', 720)
     setConfigDefault(config, 'updateIntervalSecs', 60)
+    # Used only by accounts with a device hierarchy; see vuegraf.hierarchy. A node reading
+    # short by more than the epsilon (average watts) is reported, or aborts the period.
+    setConfigDefault(config, 'hierarchyBalanceEpsilonWatts', 5.0)
+    setConfigDefault(config, 'hierarchyNegativeBalanceAbort', False)
 
     # Create a sanitized copy for logging and remove sensitive information from it
     sanitized_config = config.copy()

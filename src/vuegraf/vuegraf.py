@@ -54,12 +54,16 @@ def run():
 
     detailedIntervalSecs = getConfigValue(config, 'detailedIntervalSecs')
     detailedDataEnabled = getConfigValue(config, 'detailedDataEnabled')
-    detailedDaysEnabled = detailedDataEnabled and getConfigValue(config, 'detailedDataDaysEnabled')
-    detailedHoursEnabled = detailedDataEnabled and getConfigValue(config, 'detailedDataHoursEnabled')
+    daysEnabled = getConfigValue(config, 'detailedDataDaysEnabled')
+    hoursEnabled = getConfigValue(config, 'detailedDataHoursEnabled')
 
-    # Initialize vars to track when an hour or day changes which will trigger hourly/daily averages
-    prevHourUTC = getCurrentHourUTC()
-    prevDayLocal = getCurrentDayLocal(config)
+    # Initialize vars to track when an hour or day changes which will trigger hourly/daily averages.
+    # Each account keeps its own, so one account collecting a rollup -- or failing to -- does not
+    # decide whether the next one does.
+    startHourUTC = getCurrentHourUTC()
+    startDayLocal = getCurrentDayLocal(config)
+    prevHourUTC = {index: startHourUTC for index in range(len(config['accounts']))}
+    prevDayLocal = {index: startDayLocal for index in range(len(config['accounts']))}
 
     running = True
     while running:
@@ -79,7 +83,7 @@ def run():
         logger.debug('Starting next event collection; collectDetails={}; secondsSinceLastDetailCollection={}; detailedIntervalSecs={}'
                      .format(collectDetails, secondsSinceLastDetailCollection, detailedIntervalSecs))
 
-        for account in config['accounts']:
+        for index, account in enumerate(config['accounts']):
             initDeviceAccount(config, account)
 
             try:
@@ -95,19 +99,25 @@ def run():
                     collectUsage(config, account, None, nowLagUTC, collectDetails, usageDataPoints,
                                  detailedStartTimeUTC, Scale.MINUTE.value)
 
+                    # Hourly and daily averages are detail data, except for an account with a device
+                    # hierarchy: its Net Balances are derived from them, so they are collected for it
+                    # whenever their own resolution is enabled.
+                    rollupsEnabled = detailedDataEnabled or account.get('hierarchy') is not None
+
                     # Collect hourly averages if the hour just changed. Use UTC time for this to avoid DST
                     # issues.
-                    if detailedHoursEnabled and curHourUTC != prevHourUTC:
-                        collectUsage(config, account, prevHourUTC, prevHourUTC, False, usageDataPoints, None, Scale.HOUR.value)
-                        prevHourUTC = curHourUTC
+                    if rollupsEnabled and hoursEnabled and curHourUTC != prevHourUTC[index]:
+                        collectUsage(config, account, prevHourUTC[index], prevHourUTC[index], False, usageDataPoints, None,
+                                     Scale.HOUR.value)
+                        prevHourUTC[index] = curHourUTC
 
                     # Collect daily averages if the day just changed. Note that this is local time
                     # If used UTC was used it would attempt to collect the day's average before the local
                     # day was complete (for UTC-X timezones)
-                    if detailedDaysEnabled and curDayLocal != prevDayLocal:
-                        prevDayUTC = prevDayLocal.astimezone(datetime.UTC)
+                    if rollupsEnabled and daysEnabled and curDayLocal != prevDayLocal[index]:
+                        prevDayUTC = prevDayLocal[index].astimezone(datetime.UTC)
                         collectUsage(config, account, prevDayUTC, prevDayUTC, False, usageDataPoints, None, Scale.DAY.value)
-                        prevDayLocal = curDayLocal
+                        prevDayLocal[index] = curDayLocal
 
             except Exception:
                 logger.error('Failed to record new usage data: {}'.format(sys.exc_info()))
